@@ -1,0 +1,2097 @@
+{
+  "title": "JudgeLab",
+  "version": 1,
+  "tracks": [
+    {
+      "id": "basics",
+      "title": "Python, without the fog",
+      "subtitle": "Eight quick checks before the editor.",
+      "icon": "spark",
+      "color": "lime"
+    },
+    {
+      "id": "guided",
+      "title": "Build your first search engine",
+      "subtitle": "Four guided checkpoints. One shared Python file.",
+      "icon": "search",
+      "color": "mint"
+    },
+    {
+      "id": "core",
+      "title": "The backend coding path",
+      "subtitle": "Warm-up, relevance, context and event handling.",
+      "icon": "code",
+      "color": "blue"
+    },
+    {
+      "id": "async",
+      "title": "Reliability & async lab",
+      "subtitle": "Concurrency, partial failures and streaming.",
+      "icon": "bolt",
+      "color": "peach"
+    },
+    {
+      "id": "api",
+      "title": "FastAPI & backend extras",
+      "subtitle": "The original practice pack, kept separate.",
+      "icon": "layers",
+      "color": "purple"
+    },
+    {
+      "id": "interview",
+      "title": "Tell your engineering story",
+      "subtitle": "Your experience. Specific answers. Honest self-review.",
+      "icon": "mic",
+      "color": "lime"
+    },
+    {
+      "id": "architecture",
+      "title": "Think beyond the function",
+      "subtitle": "Five architecture conversations tied to your code.",
+      "icon": "network",
+      "color": "blue"
+    }
+  ],
+  "lessons": [
+    {
+      "id": "q-sets",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "One term, one contribution",
+      "summary": "terms(\"NOTICE notice, notice!\") returns a set. Under our practice scoring rule, how often should this query term be scored for each document?",
+      "question": "terms(\"NOTICE notice, notice!\") returns a set. Under our practice scoring rule, how often should this query term be scored for each document?",
+      "choices": [
+        "Once",
+        "Three times",
+        "Once per character",
+        "Once for the title, but never the body"
+      ],
+      "correct": 0,
+      "explanation": "A set removes repeated query terms. That distinct term can independently earn 3 title points and 1 body point.",
+      "wrong": [
+        "",
+        "Counting repetition would inflate relevance and break the supplied contract.",
+        "Characters are not the unit in this exercise. Whole tokens are.",
+        "A term may earn points from both fields."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-score",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "Read the rule, then calculate",
+      "summary": "Query: termination notice. Title: Termination clause. Body: Notice of termination. What is the score?",
+      "question": "Query: termination notice. Title: Termination clause. Body: Notice of termination. What is the score?",
+      "choices": [
+        "3",
+        "4",
+        "5",
+        "8"
+      ],
+      "correct": 2,
+      "explanation": "termination contributes 3 from the title plus 1 from the body; notice contributes 1 from the body. Total: 5.",
+      "wrong": [
+        "You missed body matches. The checks are independent.",
+        "You missed one of the two body terms.",
+        "",
+        "Both query terms would need to occur in both fields to reach 8."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-tenants",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "Public to whom?",
+      "summary": "Alice is authenticated in firm-a. A matching document belongs to firm-b and is public=True. Should Alice see it?",
+      "question": "Alice is authenticated in firm-a. A matching document belongs to firm-b and is public=True. Should Alice see it?",
+      "choices": [
+        "Yes: public overrides everything",
+        "No: the tenant gate still rejects it",
+        "Only if its relevance score is high",
+        "Only if she searches its exact title"
+      ],
+      "correct": 1,
+      "explanation": "In this exercise public means public WITHIN the document’s tenant. Identity matching, relevance and exact title matches never bypass that boundary.",
+      "wrong": [
+        "Public is scoped to a tenant, not to all customers.",
+        "",
+        "Relevance is not authorization.",
+        "Search precision is not authorization."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-filter",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "None is not an empty set",
+      "summary": "The category contract says None means no restriction; an empty frozenset means match nothing. Which check preserves that distinction?",
+      "question": "The category contract says None means no restriction; an empty frozenset means match nothing. Which check preserves that distinction?",
+      "choices": [
+        "if not categories: return True",
+        "if categories is None: return True",
+        "if len(categories) == 0: return True",
+        "Return the document’s category set"
+      ],
+      "correct": 1,
+      "explanation": "Treat None explicitly, then use a nonempty intersection for actual category sets. Both None and an empty set are falsey, but their meanings differ here.",
+      "wrong": [
+        "This merges two values with different meanings.",
+        "",
+        "len(None) raises, and empty must match nothing.",
+        "The helper must return a bool, not a set."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-limit",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "The top two are secret",
+      "summary": "A and B score highest but are inaccessible. C and D are accessible. With limit=2, what should the implementation do?",
+      "question": "A and B score highest but are inaccessible. C and D are accessible. With limit=2, what should the implementation do?",
+      "choices": [
+        "Take A and B, then remove them",
+        "Return no results to avoid risk",
+        "Filter eligibility, rank remaining hits, then take two",
+        "Stop at the first two input documents"
+      ],
+      "correct": 2,
+      "explanation": "Take the best eligible results. Filtering only after the global top-K can throw away every result slot.",
+      "wrong": [
+        "This returns an incomplete list even when eligible matches exist.",
+        "There is no reason to hide accessible C and D.",
+        "",
+        "Input order does not establish relevance."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-version",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "A deletion remembers",
+      "summary": "Stored state is a deletion tombstone at source version 5. A delayed upsert at version 3 arrives. What should apply_event do?",
+      "question": "Stored state is a deletion tombstone at source version 5. A delayed upsert at version 3 arrives. What should apply_event do?",
+      "choices": [
+        "Restore version 3",
+        "Ignore it and keep version 5",
+        "Delete the tombstone and return no history",
+        "Set a local version counter to 6"
+      ],
+      "correct": 1,
+      "explanation": "A tombstone preserves the latest source revision. A lower-version upsert is stale; it must not resurrect a deleted document.",
+      "wrong": [
+        "That resurrects stale data.",
+        "",
+        "Forgetting the revision makes future stale events harder to reject.",
+        "The V2 contract uses SOURCE versions, not a local counter."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-context",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "Skip does not mean stop",
+      "summary": "Word budget is 5. Ranked chunks cost 3, 8, then 2 words. All are eligible and distinct. Which can be selected?",
+      "question": "Word budget is 5. Ranked chunks cost 3, 8, then 2 words. All are eligible and distinct. Which can be selected?",
+      "choices": [
+        "Only the first",
+        "The first and the third",
+        "The first and a truncated second",
+        "All three"
+      ],
+      "correct": 1,
+      "explanation": "Select whole chunks. After the oversized second chunk is skipped, the third fits the remaining two-word budget. Citation labels must have no gap.",
+      "wrong": [
+        "The contract says continue after a chunk does not fit.",
+        "",
+        "Truncation is expressly excluded in this exercise.",
+        "That exceeds the budget."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "q-cancel",
+      "track": "basics",
+      "kind": "quiz",
+      "title": "Cancellation is not a missing result",
+      "summary": "Your caller cancels federated_search while sources are running. Which behaviour matches the V2 contract?",
+      "question": "Your caller cancels federated_search while sources are running. Which behaviour matches the V2 contract?",
+      "choices": [
+        "Return an empty successful result",
+        "Mark every source failed and swallow cancellation",
+        "Propagate cancellation and cancel/await owned tasks",
+        "Let all child tasks finish in the background"
+      ],
+      "correct": 2,
+      "explanation": "Cancellation is operation-level control flow. Own the child tasks, clean them up, and let cancellation propagate.",
+      "wrong": [
+        "This makes cancellation look like success.",
+        "Provider errors and caller cancellation have different meanings.",
+        "",
+        "The exercise explicitly requires cleanup before unwinding."
+      ],
+      "minutes": 2,
+      "xp": 20,
+      "source": "Guided search README and V2 exercise contracts",
+      "tags": [
+        "Quick check"
+      ]
+    },
+    {
+      "id": "g-score",
+      "track": "guided",
+      "kind": "code",
+      "title": "Score one document",
+      "summary": "Turn a query into a number. No search engine experience needed.",
+      "pack": "guided",
+      "file": "exercise.py",
+      "workspace": "guided/exercise.py",
+      "tests": [
+        "tests/test_stages.py"
+      ],
+      "targets": [
+        "score_document"
+      ],
+      "minutes": 15,
+      "xp": 80,
+      "hints": [
+        "The provided terms() helper returns distinct lowercase tokens. Tokenize the title and body once each.",
+        "Loop over query_terms. Use two independent if statements; elif would skip a body match after a title match.",
+        "Start with score = 0. Add 3 for title membership and 1 for text membership. Return the number without mutating the query set."
+      ],
+      "steps": [
+        "Read the Document model in Reference files. You only need title and text here.",
+        "Try the hand calculation below before coding.",
+        "Edit score_document only. Leave the other stage functions for later.",
+        "Run the tests. Open the failing case and compare expected versus actual."
+      ],
+      "concept": "## Your first scoring rule\nThe query is `termination notice`.\n\nTitle: `Termination clause`\nBody: `Notice of termination.`\n\n`termination` earns 3 + 1. `notice` earns 0 + 1. Total: **5**.\n\nThis is a toy, whole-token scoring rule. Repeated words earn no extra points. Use it to practise deterministic ranking.\n\n```python\nfrom text_tools import terms\nassert terms(\"NOTICE notice!\") == {\"notice\"}\n```",
+      "followups": [
+        "Why is elif incorrect here?",
+        "What work can move outside a loop over many documents?"
+      ],
+      "explanation": "The reference tokenizes each field once and checks membership independently. It loops only over distinct query terms, so repetition cannot inflate a score.",
+      "selection": "stage1",
+      "depends": [],
+      "source": "GUIDED practice pack · exercise.py",
+      "contract": "STAGE 1: score ONE document. Ignore all permissions/categories here.\n\nFor each distinct query term:\n- +3 when present in the title;\n- independently, +1 when present in the body (document.text).\n- A word in BOTH contributes 4, not 3.\n- Repetition in query/title/body never increases its contribution.\n- Whole tokens only: 'notice' must not match 'notices'.\n- Empty query_terms => 0.\n\nExample:\n  query_terms = {'termination', 'notice'}\n  title = 'Termination clause'\n  text = 'Notice of termination.'\n  result = 5: termination 3+1, notice 0+1.\n\nTODO 1: Convert title and text with the provided terms() function.\nTODO 2: Accumulate the score. An explicit loop is fine.\nTODO 3: Return an int. Do not modify the document or query_terms.\n\nTest only this stage:\n  python -m pytest -q tests/test_stages.py -k stage1 -x",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Guided version of Round 2. Edit this file only to start.\n\nFollow README.md. Models, tokenization, examples, and tests are provided.\nThis preserves the V2 search contract; helpers are an added teaching scaffold.\nThese are toy search contracts for learning and experimentation.\n\"\"\"\nfrom collections.abc import Iterable\n\nfrom models import Document, SearchHit\nfrom text_tools import terms\n\n\ndef score_document(document: Document, query_terms: set[str]) -> int:\n    \"\"\"STAGE 1: score ONE document. Ignore all permissions/categories here.\n\n    For each distinct query term:\n    - +3 when present in the title;\n    - independently, +1 when present in the body (document.text).\n    - A word in BOTH contributes 4, not 3.\n    - Repetition in query/title/body never increases its contribution.\n    - Whole tokens only: 'notice' must not match 'notices'.\n    - Empty query_terms => 0.\n\n    Example:\n      query_terms = {'termination', 'notice'}\n      title = 'Termination clause'\n      text = 'Notice of termination.'\n      result = 5: termination 3+1, notice 0+1.\n\n    TODO 1: Convert title and text with the provided terms() function.\n    TODO 2: Accumulate the score. An explicit loop is fine.\n    TODO 3: Return an int. Do not modify the document or query_terms.\n\n    Test only this stage:\n      python -m pytest -q tests/test_stages.py -k stage1 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 1: implement score_document\")\n\n\ndef can_read(document: Document, *, tenant_id: str, user_id: str) -> bool:\n    \"\"\"STAGE 2: decide whether this user may read ONE document.\n\n    Tenant is the customer firm. Identity here is already trusted/authenticated.\n    - A different tenant is ALWAYS rejected, even when public=True and even\n      when user_id happens to appear in that other tenant's allowed_users.\n    - Within the right tenant, public=True makes the document readable.\n    - Otherwise user_id must appear in allowed_users.\n    - No allowed users + public=False => unreadable.\n\n    TODO: Express those gates with early returns or one parenthesized expression.\n    Do not consult relevance, categories, or document.version here.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage2 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 2: implement can_read\")\n\n\ndef matches_categories(\n    document: Document,\n    categories: frozenset[str] | None,\n) -> bool:\n    \"\"\"STAGE 3: check an optional category filter.\n\n    These are already assigned labels; you are not implementing a classifier.\n    - None means no filter, so every document matches this helper.\n    - An empty frozenset means match nothing, NOT 'no filter'.\n    - Otherwise, at least one document category must be in the requested set.\n    - Names are exact/case-sensitive. This is OR, not AND.\n\n    TODO: Treat None explicitly. Then determine whether any label is shared.\n    Return a bool, not a set.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage3 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 3: implement matches_categories\")\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"STAGE 4: compose the helpers into the original Round 2 contract.\n\n    TODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n      BEFORE early returns for an empty query/input/filter. limit is an int.\n    TODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\n    TODO C: Visit each document once. Use your two filter helpers. For eligible\n      documents compute a score and keep positive-scoring SearchHit records.\n    TODO D: Sort hits by score descending, then document_id ascending.\n    TODO E: Apply limit LAST, and return a list.\n\n    Inputs already have unique (tenant_id, document_id) identities. No version\n    selection or deduplication is required. documents can be a generator:\n    do not require len(), indexing, or a second pass over it. Do not mutate it.\n\n    A high-scoring inaccessible document must not take a result slot away from\n    a lower-scoring accessible document. Do not sort/limit globally then filter.\n\n    Stage 4 smoke tests:\n      python -m pytest -q tests/test_stages.py -k stage4 -x\n    Original V2 acceptance tests:\n      python -m pytest -q tests/test_original_contract.py -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 4: implement search_documents\")\n",
+      "expected_tests": 9
+    },
+    {
+      "id": "g-permissions",
+      "track": "guided",
+      "kind": "code",
+      "title": "Keep firm boundaries intact",
+      "summary": "A permission check is two gates, not a ranking decision.",
+      "pack": "guided",
+      "file": "exercise.py",
+      "workspace": "guided/exercise.py",
+      "tests": [
+        "tests/test_stages.py"
+      ],
+      "targets": [
+        "can_read"
+      ],
+      "minutes": 12,
+      "xp": 80,
+      "hints": [
+        "Check tenant equality first. An early return makes the hard boundary obvious.",
+        "Within the same tenant, accept public documents OR explicitly allowed users.",
+        "The safe grouping is: same_tenant AND (public OR user_allowed)."
+      ],
+      "steps": [
+        "Keep your scoring code; stages share this file.",
+        "Implement can_read without consulting scores or categories.",
+        "Consider a public document from another tenant. It must be False."
+      ],
+      "concept": "## Two gates\nFirst: does the document belong to the authenticated customer?\nSecond: within that customer, is it public or is the user allowed?\n\nA matching username in another customer never opens the first gate. `public=True` means public **within the firm**.\n\nIdentity is already trusted in this exercise; you are not building authentication.",
+      "followups": [
+        "Why is relevance irrelevant to access?",
+        "Where would trusted identity come from in an HTTP app?"
+      ],
+      "explanation": "An early tenant rejection prevents either permission alternative from crossing the customer boundary.",
+      "selection": "stage2",
+      "depends": [
+        "g-score"
+      ],
+      "source": "GUIDED practice pack · exercise.py",
+      "contract": "STAGE 2: decide whether this user may read ONE document.\n\nTenant is the customer firm. Identity here is already trusted/authenticated.\n- A different tenant is ALWAYS rejected, even when public=True and even\n  when user_id happens to appear in that other tenant's allowed_users.\n- Within the right tenant, public=True makes the document readable.\n- Otherwise user_id must appear in allowed_users.\n- No allowed users + public=False => unreadable.\n\nTODO: Express those gates with early returns or one parenthesized expression.\nDo not consult relevance, categories, or document.version here.\n\nTest:\n  python -m pytest -q tests/test_stages.py -k stage2 -x",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Guided version of Round 2. Edit this file only to start.\n\nFollow README.md. Models, tokenization, examples, and tests are provided.\nThis preserves the V2 search contract; helpers are an added teaching scaffold.\nThese are toy search contracts for learning and experimentation.\n\"\"\"\nfrom collections.abc import Iterable\n\nfrom models import Document, SearchHit\nfrom text_tools import terms\n\n\ndef score_document(document: Document, query_terms: set[str]) -> int:\n    \"\"\"STAGE 1: score ONE document. Ignore all permissions/categories here.\n\n    For each distinct query term:\n    - +3 when present in the title;\n    - independently, +1 when present in the body (document.text).\n    - A word in BOTH contributes 4, not 3.\n    - Repetition in query/title/body never increases its contribution.\n    - Whole tokens only: 'notice' must not match 'notices'.\n    - Empty query_terms => 0.\n\n    Example:\n      query_terms = {'termination', 'notice'}\n      title = 'Termination clause'\n      text = 'Notice of termination.'\n      result = 5: termination 3+1, notice 0+1.\n\n    TODO 1: Convert title and text with the provided terms() function.\n    TODO 2: Accumulate the score. An explicit loop is fine.\n    TODO 3: Return an int. Do not modify the document or query_terms.\n\n    Test only this stage:\n      python -m pytest -q tests/test_stages.py -k stage1 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 1: implement score_document\")\n\n\ndef can_read(document: Document, *, tenant_id: str, user_id: str) -> bool:\n    \"\"\"STAGE 2: decide whether this user may read ONE document.\n\n    Tenant is the customer firm. Identity here is already trusted/authenticated.\n    - A different tenant is ALWAYS rejected, even when public=True and even\n      when user_id happens to appear in that other tenant's allowed_users.\n    - Within the right tenant, public=True makes the document readable.\n    - Otherwise user_id must appear in allowed_users.\n    - No allowed users + public=False => unreadable.\n\n    TODO: Express those gates with early returns or one parenthesized expression.\n    Do not consult relevance, categories, or document.version here.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage2 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 2: implement can_read\")\n\n\ndef matches_categories(\n    document: Document,\n    categories: frozenset[str] | None,\n) -> bool:\n    \"\"\"STAGE 3: check an optional category filter.\n\n    These are already assigned labels; you are not implementing a classifier.\n    - None means no filter, so every document matches this helper.\n    - An empty frozenset means match nothing, NOT 'no filter'.\n    - Otherwise, at least one document category must be in the requested set.\n    - Names are exact/case-sensitive. This is OR, not AND.\n\n    TODO: Treat None explicitly. Then determine whether any label is shared.\n    Return a bool, not a set.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage3 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 3: implement matches_categories\")\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"STAGE 4: compose the helpers into the original Round 2 contract.\n\n    TODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n      BEFORE early returns for an empty query/input/filter. limit is an int.\n    TODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\n    TODO C: Visit each document once. Use your two filter helpers. For eligible\n      documents compute a score and keep positive-scoring SearchHit records.\n    TODO D: Sort hits by score descending, then document_id ascending.\n    TODO E: Apply limit LAST, and return a list.\n\n    Inputs already have unique (tenant_id, document_id) identities. No version\n    selection or deduplication is required. documents can be a generator:\n    do not require len(), indexing, or a second pass over it. Do not mutate it.\n\n    A high-scoring inaccessible document must not take a result slot away from\n    a lower-scoring accessible document. Do not sort/limit globally then filter.\n\n    Stage 4 smoke tests:\n      python -m pytest -q tests/test_stages.py -k stage4 -x\n    Original V2 acceptance tests:\n      python -m pytest -q tests/test_original_contract.py -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 4: implement search_documents\")\n",
+      "expected_tests": 7
+    },
+    {
+      "id": "g-categories",
+      "track": "guided",
+      "kind": "code",
+      "title": "Filter the assigned labels",
+      "summary": "Learn the difference between absent and empty.",
+      "pack": "guided",
+      "file": "exercise.py",
+      "workspace": "guided/exercise.py",
+      "tests": [
+        "tests/test_stages.py"
+      ],
+      "targets": [
+        "matches_categories"
+      ],
+      "minutes": 12,
+      "xp": 80,
+      "hints": [
+        "Handle categories is None explicitly before any truthiness test.",
+        "A set intersection gives shared labels. Any overlap is enough.",
+        "Return bool(document.categories & categories) after handling None. An empty intersection is False."
+      ],
+      "steps": [
+        "These categories already exist. Do not build a classifier.",
+        "Make None mean unrestricted and an empty frozenset mean no match.",
+        "Test OR semantics and exact case-sensitive names."
+      ],
+      "concept": "## A small but important contract\n`None` → no category restriction.\n`frozenset()` → match nothing.\n`{\"memo\", \"contract\"}` → either label can match.\n\n```python\nassigned = frozenset({\"contract\", \"employment\"})\nrequested = frozenset({\"memo\", \"contract\"})\nshared = assigned & requested\n# shared contains contract\n```\n\n`if not categories` merges None with an empty set. That would violate this contract.",
+      "followups": [
+        "Would AND filtering be the same API?",
+        "Why return bool rather than the intersection itself?"
+      ],
+      "explanation": "Explicit None handling preserves the contract. A nonempty intersection implements OR filtering without normalizing labels.",
+      "selection": "stage3",
+      "depends": [
+        "g-permissions"
+      ],
+      "source": "GUIDED practice pack · exercise.py",
+      "contract": "STAGE 3: check an optional category filter.\n\nThese are already assigned labels; you are not implementing a classifier.\n- None means no filter, so every document matches this helper.\n- An empty frozenset means match nothing, NOT 'no filter'.\n- Otherwise, at least one document category must be in the requested set.\n- Names are exact/case-sensitive. This is OR, not AND.\n\nTODO: Treat None explicitly. Then determine whether any label is shared.\nReturn a bool, not a set.\n\nTest:\n  python -m pytest -q tests/test_stages.py -k stage3 -x",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Guided version of Round 2. Edit this file only to start.\n\nFollow README.md. Models, tokenization, examples, and tests are provided.\nThis preserves the V2 search contract; helpers are an added teaching scaffold.\nThese are toy search contracts for learning and experimentation.\n\"\"\"\nfrom collections.abc import Iterable\n\nfrom models import Document, SearchHit\nfrom text_tools import terms\n\n\ndef score_document(document: Document, query_terms: set[str]) -> int:\n    \"\"\"STAGE 1: score ONE document. Ignore all permissions/categories here.\n\n    For each distinct query term:\n    - +3 when present in the title;\n    - independently, +1 when present in the body (document.text).\n    - A word in BOTH contributes 4, not 3.\n    - Repetition in query/title/body never increases its contribution.\n    - Whole tokens only: 'notice' must not match 'notices'.\n    - Empty query_terms => 0.\n\n    Example:\n      query_terms = {'termination', 'notice'}\n      title = 'Termination clause'\n      text = 'Notice of termination.'\n      result = 5: termination 3+1, notice 0+1.\n\n    TODO 1: Convert title and text with the provided terms() function.\n    TODO 2: Accumulate the score. An explicit loop is fine.\n    TODO 3: Return an int. Do not modify the document or query_terms.\n\n    Test only this stage:\n      python -m pytest -q tests/test_stages.py -k stage1 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 1: implement score_document\")\n\n\ndef can_read(document: Document, *, tenant_id: str, user_id: str) -> bool:\n    \"\"\"STAGE 2: decide whether this user may read ONE document.\n\n    Tenant is the customer firm. Identity here is already trusted/authenticated.\n    - A different tenant is ALWAYS rejected, even when public=True and even\n      when user_id happens to appear in that other tenant's allowed_users.\n    - Within the right tenant, public=True makes the document readable.\n    - Otherwise user_id must appear in allowed_users.\n    - No allowed users + public=False => unreadable.\n\n    TODO: Express those gates with early returns or one parenthesized expression.\n    Do not consult relevance, categories, or document.version here.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage2 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 2: implement can_read\")\n\n\ndef matches_categories(\n    document: Document,\n    categories: frozenset[str] | None,\n) -> bool:\n    \"\"\"STAGE 3: check an optional category filter.\n\n    These are already assigned labels; you are not implementing a classifier.\n    - None means no filter, so every document matches this helper.\n    - An empty frozenset means match nothing, NOT 'no filter'.\n    - Otherwise, at least one document category must be in the requested set.\n    - Names are exact/case-sensitive. This is OR, not AND.\n\n    TODO: Treat None explicitly. Then determine whether any label is shared.\n    Return a bool, not a set.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage3 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 3: implement matches_categories\")\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"STAGE 4: compose the helpers into the original Round 2 contract.\n\n    TODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n      BEFORE early returns for an empty query/input/filter. limit is an int.\n    TODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\n    TODO C: Visit each document once. Use your two filter helpers. For eligible\n      documents compute a score and keep positive-scoring SearchHit records.\n    TODO D: Sort hits by score descending, then document_id ascending.\n    TODO E: Apply limit LAST, and return a list.\n\n    Inputs already have unique (tenant_id, document_id) identities. No version\n    selection or deduplication is required. documents can be a generator:\n    do not require len(), indexing, or a second pass over it. Do not mutate it.\n\n    A high-scoring inaccessible document must not take a result slot away from\n    a lower-scoring accessible document. Do not sort/limit globally then filter.\n\n    Stage 4 smoke tests:\n      python -m pytest -q tests/test_stages.py -k stage4 -x\n    Original V2 acceptance tests:\n      python -m pytest -q tests/test_original_contract.py -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 4: implement search_documents\")\n",
+      "expected_tests": 7
+    },
+    {
+      "id": "g-search",
+      "track": "guided",
+      "kind": "code",
+      "title": "Ship the complete search function",
+      "summary": "Compose your helpers. Pass the original acceptance suite.",
+      "pack": "guided",
+      "file": "exercise.py",
+      "workspace": "guided/exercise.py",
+      "tests": [
+        "tests/test_stages.py",
+        "tests/test_original_contract.py"
+      ],
+      "targets": [
+        "search_documents"
+      ],
+      "minutes": 30,
+      "xp": 80,
+      "hints": [
+        "Validate limit before any early return. Tokenize the query once.",
+        "Build hits only for readable, category-matching documents with positive scores.",
+        "Sort hits by (-hit.score, hit.document_id), then slice to limit. Do not limit before filtering."
+      ],
+      "steps": [
+        "Your previous three implementations are already in this shared file.",
+        "Validate, tokenize, filter, score, sort, then limit.",
+        "Use SearchHit records, not dictionaries.",
+        "This checkpoint runs the earlier stages too, plus the original contract."
+      ],
+      "concept": "## The best eligible results\nSuppose the two highest raw scores are secret. Lower-scoring public hits still deserve both result slots.\n\nDo not select a global top-K and filter afterwards. Do not stop at the first K matches in input order.\n\n## Sort in two directions\n```python\ntickets = [(2, \"z\"), (5, \"b\"), (5, \"a\")]\nordered = sorted(tickets, key=lambda t: (-t[0], t[1]))\n# [(5, \"a\"), (5, \"b\"), (2, \"z\")]\n```\nAdapt the same idea to SearchHit fields. Accept a one-shot iterable without changing it.",
+      "followups": [
+        "How would you add min_score without breaking old callers?",
+        "What changes when a scan no longer meets latency targets?"
+      ],
+      "explanation": "The reference separates eligibility from relevance, consumes input once and limits only after deterministic ordering. Passing these tests is not a proof of production security.",
+      "selection": null,
+      "depends": [
+        "g-categories"
+      ],
+      "source": "GUIDED practice pack · exercise.py",
+      "contract": "STAGE 4: compose the helpers into the original Round 2 contract.\n\nTODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n  BEFORE early returns for an empty query/input/filter. limit is an int.\nTODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\nTODO C: Visit each document once. Use your two filter helpers. For eligible\n  documents compute a score and keep positive-scoring SearchHit records.\nTODO D: Sort hits by score descending, then document_id ascending.\nTODO E: Apply limit LAST, and return a list.\n\nInputs already have unique (tenant_id, document_id) identities. No version\nselection or deduplication is required. documents can be a generator:\ndo not require len(), indexing, or a second pass over it. Do not mutate it.\n\nA high-scoring inaccessible document must not take a result slot away from\na lower-scoring accessible document. Do not sort/limit globally then filter.\n\nStage 4 smoke tests:\n  python -m pytest -q tests/test_stages.py -k stage4 -x\nOriginal V2 acceptance tests:\n  python -m pytest -q tests/test_original_contract.py -x",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Guided version of Round 2. Edit this file only to start.\n\nFollow README.md. Models, tokenization, examples, and tests are provided.\nThis preserves the V2 search contract; helpers are an added teaching scaffold.\nThese are toy search contracts for learning and experimentation.\n\"\"\"\nfrom collections.abc import Iterable\n\nfrom models import Document, SearchHit\nfrom text_tools import terms\n\n\ndef score_document(document: Document, query_terms: set[str]) -> int:\n    \"\"\"STAGE 1: score ONE document. Ignore all permissions/categories here.\n\n    For each distinct query term:\n    - +3 when present in the title;\n    - independently, +1 when present in the body (document.text).\n    - A word in BOTH contributes 4, not 3.\n    - Repetition in query/title/body never increases its contribution.\n    - Whole tokens only: 'notice' must not match 'notices'.\n    - Empty query_terms => 0.\n\n    Example:\n      query_terms = {'termination', 'notice'}\n      title = 'Termination clause'\n      text = 'Notice of termination.'\n      result = 5: termination 3+1, notice 0+1.\n\n    TODO 1: Convert title and text with the provided terms() function.\n    TODO 2: Accumulate the score. An explicit loop is fine.\n    TODO 3: Return an int. Do not modify the document or query_terms.\n\n    Test only this stage:\n      python -m pytest -q tests/test_stages.py -k stage1 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 1: implement score_document\")\n\n\ndef can_read(document: Document, *, tenant_id: str, user_id: str) -> bool:\n    \"\"\"STAGE 2: decide whether this user may read ONE document.\n\n    Tenant is the customer firm. Identity here is already trusted/authenticated.\n    - A different tenant is ALWAYS rejected, even when public=True and even\n      when user_id happens to appear in that other tenant's allowed_users.\n    - Within the right tenant, public=True makes the document readable.\n    - Otherwise user_id must appear in allowed_users.\n    - No allowed users + public=False => unreadable.\n\n    TODO: Express those gates with early returns or one parenthesized expression.\n    Do not consult relevance, categories, or document.version here.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage2 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 2: implement can_read\")\n\n\ndef matches_categories(\n    document: Document,\n    categories: frozenset[str] | None,\n) -> bool:\n    \"\"\"STAGE 3: check an optional category filter.\n\n    These are already assigned labels; you are not implementing a classifier.\n    - None means no filter, so every document matches this helper.\n    - An empty frozenset means match nothing, NOT 'no filter'.\n    - Otherwise, at least one document category must be in the requested set.\n    - Names are exact/case-sensitive. This is OR, not AND.\n\n    TODO: Treat None explicitly. Then determine whether any label is shared.\n    Return a bool, not a set.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage3 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 3: implement matches_categories\")\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"STAGE 4: compose the helpers into the original Round 2 contract.\n\n    TODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n      BEFORE early returns for an empty query/input/filter. limit is an int.\n    TODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\n    TODO C: Visit each document once. Use your two filter helpers. For eligible\n      documents compute a score and keep positive-scoring SearchHit records.\n    TODO D: Sort hits by score descending, then document_id ascending.\n    TODO E: Apply limit LAST, and return a list.\n\n    Inputs already have unique (tenant_id, document_id) identities. No version\n    selection or deduplication is required. documents can be a generator:\n    do not require len(), indexing, or a second pass over it. Do not mutate it.\n\n    A high-scoring inaccessible document must not take a result slot away from\n    a lower-scoring accessible document. Do not sort/limit globally then filter.\n\n    Stage 4 smoke tests:\n      python -m pytest -q tests/test_stages.py -k stage4 -x\n    Original V2 acceptance tests:\n      python -m pytest -q tests/test_original_contract.py -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 4: implement search_documents\")\n",
+      "expected_tests": 44
+    },
+    {
+      "id": "c-latest",
+      "track": "core",
+      "kind": "code",
+      "title": "Warm-up: latest document wins",
+      "summary": "Pick the right identity before choosing a data structure.",
+      "pack": "v2",
+      "file": "practice/round01_warmup.py",
+      "workspace": "v2/practice/round01_warmup.py",
+      "tests": [
+        "tests/test_01_warmup.py"
+      ],
+      "targets": [
+        "latest_documents"
+      ],
+      "minutes": 12,
+      "xp": 120,
+      "hints": [
+        "Use (tenant_id, document_id) as the dictionary key.",
+        "Replace the winner when the new version is greater OR equal: the last equal-version record wins.",
+        "Sort the winning keys for the final list; input order is not output order."
+      ],
+      "steps": [
+        "Implement latest_documents; category_counts is a separate checkpoint.",
+        "Consume the iterable once and keep one winner per identity.",
+        "Try same document ID in two tenants before submitting."
+      ],
+      "concept": "## Source versions are not arrival order\nAn input may contain versions 3, 1, then 2. Keep version 3. But when two records have the same version, the **last payload** wins under this warm-up contract.\n\nThe V2 ingestion round later uses different conflict rules; do not conflate them.",
+      "followups": [
+        "What changes if equal versions must be identical?",
+        "How much memory does one winner per identity require?"
+      ],
+      "explanation": "A dictionary retains the current winner per composite identity. The >= comparison implements the specific equal-version rule.",
+      "selection": "latest",
+      "depends": [],
+      "source": "V2 practice pack · practice/round01_warmup.py",
+      "contract": "Keep one document per (tenant_id, document_id).\n\nTODO:\n- Keep the highest version; on an equal version, the LAST input wins.\n- Return winners ordered by (tenant_id, document_id), ascending.\n- Consume a one-shot iterable correctly; do not modify the input.\n- Empty input returns []. Versions are positive in this exercise.\n\nDo not collapse documents from different tenants with the same document_id.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Start here. Read prompts/01_warmup.md, then run:\n    python -m pytest -q tests/test_01_warmup.py -x\nSuggested time: 10-15 minutes. No asyncio or web framework needed.\n\"\"\"\nfrom collections.abc import Iterable\nfrom practice.models import Document\n\n\ndef latest_documents(documents: Iterable[Document]) -> list[Document]:\n    \"\"\"Keep one document per (tenant_id, document_id).\n\n    TODO:\n    - Keep the highest version; on an equal version, the LAST input wins.\n    - Return winners ordered by (tenant_id, document_id), ascending.\n    - Consume a one-shot iterable correctly; do not modify the input.\n    - Empty input returns []. Versions are positive in this exercise.\n\n    Do not collapse documents from different tenants with the same document_id.\n    \"\"\"\n    raise NotImplementedError(\"Round 1A: implement latest_documents\")\n\n\ndef category_counts(documents: Iterable[Document]) -> dict[str, int]:\n    \"\"\"Count how many input documents carry each category.\n\n    TODO:\n    - Categories are already supplied metadata; do NOT build an ML classifier.\n    - Count each document once per category; preserve category strings exactly.\n    - A document may contribute to several categories, or none.\n    - Input is already deduplicated; no need to call latest_documents here.\n    - Empty input returns {}. Output dict ordering is not assessed.\n    \"\"\"\n    raise NotImplementedError(\"Round 1B: implement category_counts\")\n",
+      "expected_tests": 6
+    },
+    {
+      "id": "c-counts",
+      "track": "core",
+      "kind": "code",
+      "title": "Warm-up: count the labels",
+      "summary": "Aggregate supplied metadata without deduplicating the input.",
+      "pack": "v2",
+      "file": "practice/round01_warmup.py",
+      "workspace": "v2/practice/round01_warmup.py",
+      "tests": [
+        "tests/test_01_warmup.py"
+      ],
+      "targets": [
+        "category_counts"
+      ],
+      "minutes": 10,
+      "xp": 120,
+      "hints": [
+        "Each document can contribute to several categories. Use a nested loop.",
+        "A missing category can start at zero using counts.get(category, 0).",
+        "Do not call latest_documents: this function receives an already prepared input and counts every input record."
+      ],
+      "steps": [
+        "Keep the first warm-up implementation in this shared file.",
+        "Build a category-to-count dictionary.",
+        "Preserve the category strings, including case."
+      ],
+      "concept": "## Ordinary Python aggregation\nOne contract + one memo document can contribute to both categories if both labels are assigned. Classification is already done.\n\nAn empty iterable should return `{}`. The dictionary’s order is not assessed.",
+      "followups": [
+        "Would repeated categories inside a set change the count?",
+        "What assumption lets this helper ignore document versions?"
+      ],
+      "explanation": "A nested loop updates a dictionary once per assigned category. The function does not invent a normalization or deduplication step.",
+      "selection": "categories",
+      "depends": [],
+      "source": "V2 practice pack · practice/round01_warmup.py",
+      "contract": "Count how many input documents carry each category.\n\nTODO:\n- Categories are already supplied metadata; do NOT build an ML classifier.\n- Count each document once per category; preserve category strings exactly.\n- A document may contribute to several categories, or none.\n- Input is already deduplicated; no need to call latest_documents here.\n- Empty input returns {}. Output dict ordering is not assessed.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Start here. Read prompts/01_warmup.md, then run:\n    python -m pytest -q tests/test_01_warmup.py -x\nSuggested time: 10-15 minutes. No asyncio or web framework needed.\n\"\"\"\nfrom collections.abc import Iterable\nfrom practice.models import Document\n\n\ndef latest_documents(documents: Iterable[Document]) -> list[Document]:\n    \"\"\"Keep one document per (tenant_id, document_id).\n\n    TODO:\n    - Keep the highest version; on an equal version, the LAST input wins.\n    - Return winners ordered by (tenant_id, document_id), ascending.\n    - Consume a one-shot iterable correctly; do not modify the input.\n    - Empty input returns []. Versions are positive in this exercise.\n\n    Do not collapse documents from different tenants with the same document_id.\n    \"\"\"\n    raise NotImplementedError(\"Round 1A: implement latest_documents\")\n\n\ndef category_counts(documents: Iterable[Document]) -> dict[str, int]:\n    \"\"\"Count how many input documents carry each category.\n\n    TODO:\n    - Categories are already supplied metadata; do NOT build an ML classifier.\n    - Count each document once per category; preserve category strings exactly.\n    - A document may contribute to several categories, or none.\n    - Input is already deduplicated; no need to call latest_documents here.\n    - Empty input returns {}. Output dict ordering is not assessed.\n    \"\"\"\n    raise NotImplementedError(\"Round 1B: implement category_counts\")\n",
+      "expected_tests": 3
+    },
+    {
+      "id": "c-search",
+      "track": "core",
+      "kind": "code",
+      "title": "Ranked search, unassisted",
+      "summary": "Rebuild the full contract in the original V2 workspace.",
+      "pack": "v2",
+      "file": "practice/round02_search.py",
+      "workspace": "v2/practice/round02_search.py",
+      "tests": [
+        "tests/test_02_search.py"
+      ],
+      "targets": [
+        "search_documents"
+      ],
+      "minutes": 35,
+      "xp": 120,
+      "hints": [
+        "Separate eligibility, scoring and ordering. Read the docstring before coding.",
+        "Convert query to a token set once. Check category None explicitly.",
+        "Collect positive SearchHits, then sort with (-score, document_id) before slicing."
+      ],
+      "steps": [
+        "This is a new file, not the guided workspace.",
+        "Implement without looking at your earlier solution for a stronger rehearsal.",
+        "Use tests to drive corrections, not a network search engine."
+      ],
+      "concept": "## Your first complete rehearsal\nThe specification matches guided search: same tenant and permission rules, OR category filters, whole-token title/body scores, deterministic ranking and validated limits.\n\nTry explaining one decision aloud before typing. Keep it a function rather than an application framework.",
+      "followups": [
+        "Which layer should enforce access before top-K?",
+        "Where would profiling guide the next optimization?"
+      ],
+      "explanation": "This is one reference approach, not the only valid implementation. It uses the same helpers as guided search for readability.",
+      "selection": null,
+      "depends": [],
+      "source": "V2 practice pack · practice/round02_search.py",
+      "contract": "Implement deterministic, permission-aware toy search.\n\nTODO, in increments:\n1. Validate limit: 1 <= limit <= 100, otherwise raise ValueError, even on\n   empty input/query. You can assume the supplied limit is an int.\n2. A document is visible only if its tenant matches AND (public OR the user\n   is in allowed_users). Public means public WITHIN the tenant.\n3. categories=None means no category filter; an empty set matches nothing;\n   otherwise require at least one category in common (OR semantics).\n4. For each DISTINCT query token: +3 if in title, +1 if in body.\n   A token present in both contributes 4. Repetition adds no extra points.\n   Use the supplied terms() helper. Matching is whole-token, not substring.\n5. Exclude score=0. An empty/punctuation-only query returns [].\n6. Sort by descending score, then ascending document_id. Take limit LAST.\n7. Map to SearchHit. Do not mutate documents. Input identities are unique.\n\nNo external search engine, embeddings, HTTP, or LLM calls are needed.\nThis scoring rule is a simplified practice specification.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Core coding exercise. Read prompts/02_search.md, then run:\n    python -m pytest -q tests/test_02_search.py -x\nSuggested time: 25-35 minutes. This module is independent of Round 1.\n\"\"\"\nfrom collections.abc import Iterable\nfrom practice.models import Document, SearchHit\nfrom practice.text import terms  # Provided; no need to implement a tokenizer.\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"Implement deterministic, permission-aware toy search.\n\n    TODO, in increments:\n    1. Validate limit: 1 <= limit <= 100, otherwise raise ValueError, even on\n       empty input/query. You can assume the supplied limit is an int.\n    2. A document is visible only if its tenant matches AND (public OR the user\n       is in allowed_users). Public means public WITHIN the tenant.\n    3. categories=None means no category filter; an empty set matches nothing;\n       otherwise require at least one category in common (OR semantics).\n    4. For each DISTINCT query token: +3 if in title, +1 if in body.\n       A token present in both contributes 4. Repetition adds no extra points.\n       Use the supplied terms() helper. Matching is whole-token, not substring.\n    5. Exclude score=0. An empty/punctuation-only query returns [].\n    6. Sort by descending score, then ascending document_id. Take limit LAST.\n    7. Map to SearchHit. Do not mutate documents. Input identities are unique.\n\n    No external search engine, embeddings, HTTP, or LLM calls are needed.\n    This scoring rule is a simplified practice specification.\n    \"\"\"\n    raise NotImplementedError(\"Round 2: implement search_documents\")\n",
+      "expected_tests": 16
+    },
+    {
+      "id": "c-context",
+      "track": "core",
+      "kind": "code",
+      "title": "Build context with trustworthy references",
+      "summary": "Select already-ranked chunks without losing where they came from.",
+      "pack": "v2",
+      "file": "practice/round03_context.py",
+      "workspace": "v2/practice/round03_context.py",
+      "tests": [
+        "tests/test_03_context.py"
+      ],
+      "targets": [
+        "build_context"
+      ],
+      "minutes": 35,
+      "xp": 120,
+      "hints": [
+        "Keep a seen-chunk set separate from counts of selected chunks.",
+        "Filter permissions and empty content first. Mark the first eligible occurrence seen even if it is too large.",
+        "Skip a too-large chunk and keep looking. Assign citation labels only when selecting."
+      ],
+      "steps": [
+        "Read the Chunk, Citation and Context models.",
+        "Validate the budget before consuming the iterable.",
+        "Select whole chunks in input order and count content words only.",
+        "Return citation records that map to selected chunk identities."
+      ],
+      "concept": "## Budget is not truncation\nWith budget 5 and costs 3, 8, 2, select the first and third chunks.\n\nThis is a **word** budget, not a model token budget. Labels do not count. A valid source mapping proves identity, not that an answer’s claim is supported.\n\nDuplicates have a precise first-visible-nonempty-wins rule. Read that before deciding when to add to seen.",
+      "followups": [
+        "Where must permission checks occur before model access?",
+        "Does citation validity prove factual entailment?"
+      ],
+      "explanation": "Separate sets and counters distinguish already considered identities from actually selected chunks. Only selected content consumes budget or citation numbers.",
+      "selection": null,
+      "depends": [],
+      "source": "V2 practice pack · practice/round03_context.py",
+      "contract": "Select already-ranked chunks and construct traceable context.\n\nTODO:\n- Validate word_budget >= 0 and max_per_document >= 1 (both are ints).\n  Raise ValueError before consuming input if either is invalid.\n- Preserve rank/input order; do not re-sort.\n- Filter tenant/permissions BEFORE deduplication, counting, or selection.\n  Visibility is the same simplified rule as Round 2.\n- Skip empty/whitespace-only text.\n- For duplicate (tenant_id, document_id, chunk_id), consider ONLY the first\n  visible non-empty occurrence, even if it is later skipped for size/cap.\n- Include at most max_per_document chunks from a document.\n- Word cost is len(text.split()). Accept whole chunks only, never truncate.\n  When a chunk does not fit, SKIP it and keep trying later smaller chunks.\n- Normalize selected text with \" \".join(text.split()).\n- Number SELECTED chunks [1], [2], ... with no gaps. Render each line as\n  \"[n] normalized text\" and join lines with a single newline, no trailing one.\n- Return corresponding Citation objects, in order, and words_used.\n  Budget counts content words ONLY, not labels or separators.\n- No selected chunks -> Context(\"\", (), 0).\n\nThis is deliberately a WORD budget, not an LLM token budget. No model call.\nA valid citation mapping proves source identity, not that an answer's claims\nare entailed by the source; that is a separate evaluation problem.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Retrieval-to-chat exercise. Read prompts/03_context.md, then run:\n    python -m pytest -q tests/test_03_context.py -x\nSuggested time: 25-35 minutes. Independent of Rounds 1 and 2.\n\"\"\"\nfrom collections.abc import Iterable\nfrom practice.models import Chunk, Citation, Context\n\n\ndef build_context(\n    chunks: Iterable[Chunk],\n    *,\n    tenant_id: str,\n    user_id: str,\n    word_budget: int,\n    max_per_document: int = 2,\n) -> Context:\n    \"\"\"Select already-ranked chunks and construct traceable context.\n\n    TODO:\n    - Validate word_budget >= 0 and max_per_document >= 1 (both are ints).\n      Raise ValueError before consuming input if either is invalid.\n    - Preserve rank/input order; do not re-sort.\n    - Filter tenant/permissions BEFORE deduplication, counting, or selection.\n      Visibility is the same simplified rule as Round 2.\n    - Skip empty/whitespace-only text.\n    - For duplicate (tenant_id, document_id, chunk_id), consider ONLY the first\n      visible non-empty occurrence, even if it is later skipped for size/cap.\n    - Include at most max_per_document chunks from a document.\n    - Word cost is len(text.split()). Accept whole chunks only, never truncate.\n      When a chunk does not fit, SKIP it and keep trying later smaller chunks.\n    - Normalize selected text with \" \".join(text.split()).\n    - Number SELECTED chunks [1], [2], ... with no gaps. Render each line as\n      \"[n] normalized text\" and join lines with a single newline, no trailing one.\n    - Return corresponding Citation objects, in order, and words_used.\n      Budget counts content words ONLY, not labels or separators.\n    - No selected chunks -> Context(\"\", (), 0).\n\n    This is deliberately a WORD budget, not an LLM token budget. No model call.\n    A valid citation mapping proves source identity, not that an answer's claims\n    are entailed by the source; that is a separate evaluation problem.\n    \"\"\"\n    raise NotImplementedError(\"Round 3: implement build_context\")\n",
+      "expected_tests": 14
+    },
+    {
+      "id": "c-events",
+      "track": "core",
+      "kind": "code",
+      "title": "Ingest without resurrecting deleted data",
+      "summary": "Versions, duplicates, conflicts and tombstones.",
+      "pack": "v2",
+      "file": "practice/round04_ingestion.py",
+      "workspace": "v2/practice/round04_ingestion.py",
+      "tests": [
+        "tests/test_04_ingestion.py"
+      ],
+      "targets": [
+        "apply_event"
+      ],
+      "minutes": 35,
+      "xp": 120,
+      "hints": [
+        "Validate the event fully before checking whether it is stale.",
+        "Construct the proposed StoredRevision before mutating the store.",
+        "Lower revision: ignore. Equal and identical: ignore. Equal and different: conflict. Higher: apply, including tombstones."
+      ],
+      "steps": [
+        "Use the source version, not a locally incremented counter.",
+        "Keep a deletion revision even when no live document remains.",
+        "Ensure invalid/conflicting events leave the old state untouched."
+      ],
+      "concept": "## Why a tombstone matters\nDelete v5 → delayed upsert v3 must stay deleted. A genuinely newer upsert v6 may restore it.\n\nThe V1 idempotent-ingestion exercise uses a **different local version counter**. This V2 task uses the source’s comparable revision. Both contracts remain available separately.",
+      "followups": [
+        "What database operation could enforce this under two writers?",
+        "How would a delayed indexing worker avoid writing a stale embedding?"
+      ],
+      "explanation": "The code validates before comparing, distinguishes missing history from deletion history, and assigns only after every condition allows it.",
+      "selection": null,
+      "depends": [],
+      "source": "V2 practice pack · practice/round04_ingestion.py",
+      "contract": "Apply a source event without corrupting newer data.\n\nTODO:\n- Validate first, even if an event would be stale: version > 0; kind is\n  upsert/delete; upsert has a Document matching identity AND version;\n  delete has document=None. Invalid event -> ValueError, no mutation.\n- Identity is (tenant_id, document_id).\n- No stored revision, or strictly newer version: store the new revision\n  and return \"applied\". A delete stores a tombstone (document=None).\n- Lower version: return \"ignored\" without changing anything.\n- Same version AND identical payload: return \"ignored\" (idempotency).\n- Same version but different payload: raise ConflictingRevisionError,\n  leaving the old state untouched.\n- A stale upsert must not resurrect a deleted document. A genuinely NEWER\n  upsert CAN restore it. Deletes of unseen documents also store tombstones.\n\nNo persistence, network, threads, or batch transaction is required.\nSource versions are comparable per identity; no wall-clock assumptions.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Updates/deletions exercise. Read prompts/04_ingestion.md, then run:\n    python -m pytest -q tests/test_04_ingestion.py -x\nSuggested time: 25-35 minutes. Independent of the other rounds.\n\"\"\"\nfrom dataclasses import dataclass\nfrom typing import Literal\nfrom practice.models import Document\n\n\n@dataclass(frozen=True)\nclass DocumentEvent:\n    tenant_id: str\n    document_id: str\n    version: int  # SOURCE revision, not a local counter; strictly positive.\n    kind: Literal[\"upsert\", \"delete\"]\n    document: Document | None = None\n\n\n@dataclass(frozen=True)\nclass StoredRevision:\n    version: int\n    document: Document | None  # None = a tombstone, not absence of all history.\n\n\nclass ConflictingRevisionError(ValueError):\n    \"\"\"Same identity+source version but different payload.\"\"\"\n\n\ntype Store = dict[tuple[str, str], StoredRevision]\n\n\ndef apply_event(store: Store, event: DocumentEvent) -> Literal[\"applied\", \"ignored\"]:\n    \"\"\"Apply a source event without corrupting newer data.\n\n    TODO:\n    - Validate first, even if an event would be stale: version > 0; kind is\n      upsert/delete; upsert has a Document matching identity AND version;\n      delete has document=None. Invalid event -> ValueError, no mutation.\n    - Identity is (tenant_id, document_id).\n    - No stored revision, or strictly newer version: store the new revision\n      and return \"applied\". A delete stores a tombstone (document=None).\n    - Lower version: return \"ignored\" without changing anything.\n    - Same version AND identical payload: return \"ignored\" (idempotency).\n    - Same version but different payload: raise ConflictingRevisionError,\n      leaving the old state untouched.\n    - A stale upsert must not resurrect a deleted document. A genuinely NEWER\n      upsert CAN restore it. Deletes of unseen documents also store tombstones.\n\n    No persistence, network, threads, or batch transaction is required.\n    Source versions are comparable per identity; no wall-clock assumptions.\n    \"\"\"\n    raise NotImplementedError(\"Round 4: implement apply_event\")\n",
+      "expected_tests": 17
+    },
+    {
+      "id": "a-federated",
+      "track": "async",
+      "kind": "code",
+      "title": "Search several sources concurrently",
+      "summary": "Keep successful hits when one provider fails.",
+      "pack": "v2",
+      "file": "practice/round05_async.py",
+      "workspace": "v2/practice/round05_async.py",
+      "tests": [
+        "tests/test_05_async.py"
+      ],
+      "targets": [
+        "federated_search"
+      ],
+      "minutes": 40,
+      "xp": 120,
+      "hints": [
+        "Put the per-source timeout inside the concurrency slot, not around queueing for that slot.",
+        "Catch ordinary source Exceptions inside each child, but do not swallow caller cancellation.",
+        "Own tasks with a TaskGroup or explicit try/finally cancel-and-await. Merge by tenant plus document ID."
+      ],
+      "steps": [
+        "Read the finite timeout and sorted failure-list rules.",
+        "Use in-memory async sources only.",
+        "Run concurrency, partial-failure and cancellation tests separately when debugging."
+      ],
+      "concept": "## Two different failure paths\nA provider error is a partial result. Caller cancellation stops the operation and requires cleanup.\n\nFor this toy exercise, provider scores are already comparable and results are permission-scoped. Do not silently assume either is true in a production search system.",
+      "followups": [
+        "How does a request-wide deadline differ from a source timeout?",
+        "What would make source scores incomparable?"
+      ],
+      "explanation": "The reference isolates recoverable source exceptions inside tasks. TaskGroup owns cancellation cleanup, then results are merged deterministically.",
+      "selection": null,
+      "depends": [],
+      "source": "V2 practice pack · practice/round05_async.py",
+      "contract": "Fan out a query to fake search sources, then merge their results.\n\nTODO:\n- Validate max_concurrency >= 1 and finite timeout_s > 0 before doing work.\n  Assume int and float argument types, respectively. Raise ValueError.\n- Call every supplied source exactly once with query.\n- Run concurrently, but cap active source calls at max_concurrency.\n- Timeout starts when a call acquires its slot, NOT while queued for one.\n- Each normal Exception/timeout marks that source failed; other sources\n  should still complete. failed_sources is a lexicographically sorted tuple.\n- Merge hits by (tenant_id, document_id), retaining the highest score.\n  Sort descending score, then ascending tenant_id and document_id.\n- Empty sources -> FederatedResult((), ()).\n- Cancellation of this operation must propagate; all owned source tasks\n  must be cancelled/awaited before this function finishes unwinding.\n\nSources are already permission-scoped by a trusted upstream layer. Their\nreturned scores are finite and comparable ONLY for this toy exercise.\nSource count is small; a worker pool for millions of tasks is not required.\nUse only the standard library. No real I/O services.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Optional deeper extension. Read prompts/05_async.md, then run:\n    python -m pytest -q tests/test_05_async.py -x\nSuggested time: 30-40 minutes. Explore concurrency and failure handling.\n\"\"\"\nfrom collections.abc import Awaitable, Callable, Mapping\nfrom practice.models import Candidate, FederatedResult\n\n\ntype SearchSource = Callable[[str], Awaitable[list[Candidate]]]\n\n\nasync def federated_search(\n    query: str,\n    sources: Mapping[str, SearchSource],\n    *,\n    max_concurrency: int = 3,\n    timeout_s: float = 1.0,\n) -> FederatedResult:\n    \"\"\"Fan out a query to fake search sources, then merge their results.\n\n    TODO:\n    - Validate max_concurrency >= 1 and finite timeout_s > 0 before doing work.\n      Assume int and float argument types, respectively. Raise ValueError.\n    - Call every supplied source exactly once with query.\n    - Run concurrently, but cap active source calls at max_concurrency.\n    - Timeout starts when a call acquires its slot, NOT while queued for one.\n    - Each normal Exception/timeout marks that source failed; other sources\n      should still complete. failed_sources is a lexicographically sorted tuple.\n    - Merge hits by (tenant_id, document_id), retaining the highest score.\n      Sort descending score, then ascending tenant_id and document_id.\n    - Empty sources -> FederatedResult((), ()).\n    - Cancellation of this operation must propagate; all owned source tasks\n      must be cancelled/awaited before this function finishes unwinding.\n\n    Sources are already permission-scoped by a trusted upstream layer. Their\n    returned scores are finite and comparable ONLY for this toy exercise.\n    Source count is small; a worker pool for millions of tasks is not required.\n    Use only the standard library. No real I/O services.\n    \"\"\"\n    raise NotImplementedError(\"Round 5: implement federated_search\")\n",
+      "expected_tests": 12
+    },
+    {
+      "id": "a-parser",
+      "track": "async",
+      "kind": "code",
+      "title": "Parse a stream, not a blob",
+      "summary": "Network boundaries are not JSON-message boundaries.",
+      "pack": "v2",
+      "file": "practice/round06_stream_bonus.py",
+      "workspace": "v2/practice/round06_stream_bonus.py",
+      "tests": [
+        "tests/test_06_stream_bonus.py"
+      ],
+      "targets": [
+        "parse_events"
+      ],
+      "minutes": 30,
+      "xp": 120,
+      "hints": [
+        "Retain an incomplete suffix between chunks. Split only complete newline-delimited lines.",
+        "Yield complete buffered events before asking the input for more data.",
+        "Validate exact keys, allowed type values and string value in a helper. Parse a final nonblank EOF suffix."
+      ],
+      "steps": [
+        "This is synchronous iterator code; no asyncio is required.",
+        "Test splits inside strings, escaped newlines and Unicode.",
+        "Preserve already yielded events before reporting a later error."
+      ],
+      "concept": "## Incremental means incremental\nOne chunk may contain half a JSON record or five complete records. The parser must not request future input just to finish an already complete event.\n\nInput is decoded text, not bytes; UTF-8 decoding is outside this task.",
+      "followups": [
+        "What memory limit would you add for an endless line?",
+        "Where would you verify a citation’s access permissions?"
+      ],
+      "explanation": "The reference keeps a suffix buffer and a separate schema validator. It drains complete lines before consuming more input.",
+      "selection": null,
+      "depends": [],
+      "source": "V2 practice pack · practice/round06_stream_bonus.py",
+      "contract": "Parse newline-delimited JSON incrementally, independent of chunk boundaries.\n\nTODO:\n- Input strings may split a JSON line anywhere or contain several lines.\n- Each nonblank line must be an object with EXACTLY keys \"type\" and \"value\".\n  type is \"token\" or \"citation\"; value is a string (empty is allowed).\n- Yield StreamEvent(type, value) immediately when a complete line is ready.\n  Do not read future input unnecessarily or buffer the whole stream.\n- Ignore blank lines. Handle LF and CRLF input.\n- On clean EOF, parse one final nonblank line even without a final newline.\n- Invalid JSON/schema -> InvalidStreamEvent; previously yielded events stay\n  yielded. Exceptions raised by the input iterable propagate unchanged.\n- Unicode text must be preserved. Input is already decoded str, not bytes.\n\nAn event with value=\"[doc-7]\" is just a string here; verifying citation access\nand provenance belongs to a separate layer, not this transport parser.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "\"\"\"Bonus: general coding with a streaming input. Read prompts/06_stream_bonus.md.\n    python -m pytest -q tests/test_06_stream_bonus.py -x\nSuggested time: 20-30 minutes. No asyncio; no real model/API.\n\"\"\"\nfrom collections.abc import Iterable, Iterator\nfrom dataclasses import dataclass\nfrom typing import Literal\n\n\n@dataclass(frozen=True)\nclass StreamEvent:\n    kind: Literal[\"token\", \"citation\"]\n    value: str\n\n\nclass InvalidStreamEvent(ValueError):\n    \"\"\"Bad JSON or an event that does not match the exercise schema.\"\"\"\n\n\ndef parse_events(chunks: Iterable[str]) -> Iterator[StreamEvent]:\n    \"\"\"Parse newline-delimited JSON incrementally, independent of chunk boundaries.\n\n    TODO:\n    - Input strings may split a JSON line anywhere or contain several lines.\n    - Each nonblank line must be an object with EXACTLY keys \"type\" and \"value\".\n      type is \"token\" or \"citation\"; value is a string (empty is allowed).\n    - Yield StreamEvent(type, value) immediately when a complete line is ready.\n      Do not read future input unnecessarily or buffer the whole stream.\n    - Ignore blank lines. Handle LF and CRLF input.\n    - On clean EOF, parse one final nonblank line even without a final newline.\n    - Invalid JSON/schema -> InvalidStreamEvent; previously yielded events stay\n      yielded. Exceptions raised by the input iterable propagate unchanged.\n    - Unicode text must be preserved. Input is already decoded str, not bytes.\n\n    An event with value=\"[doc-7]\" is just a string here; verifying citation access\n    and provenance belongs to a separate layer, not this transport parser.\n    \"\"\"\n    # Keep the starter a generator so callers use the intended public shape.\n    # Replace this body, including the empty yield-from, with your implementation.\n    raise NotImplementedError(\"Bonus: implement parse_events\")\n    yield from ()\n",
+      "expected_tests": 20
+    },
+    {
+      "id": "a-fetch",
+      "track": "async",
+      "kind": "code",
+      "title": "Fetch documents with bounded concurrency",
+      "summary": "Keep order, deduplicate calls and isolate timeouts.",
+      "pack": "v1",
+      "file": "practice/exercise1_fetch_documents.py",
+      "workspace": "v1/practice/exercise1_fetch_documents.py",
+      "tests": [
+        "tests/test_exercise1_fetch_documents.py"
+      ],
+      "targets": [
+        "fetch_documents"
+      ],
+      "minutes": 30,
+      "xp": 120,
+      "hints": [
+        "Materialize input order once, then deduplicate IDs for downstream calls.",
+        "Limit active fetches with a semaphore and time out individual calls.",
+        "Map each unique ID to its result, then rebuild the full ordered output including duplicates."
+      ],
+      "steps": [
+        "Use the original V1 signature and Document model.",
+        "Represent individual failures as None.",
+        "Discuss large inputs after the small-input solution works."
+      ],
+      "concept": "## One call, several result positions\nFor [a, b, a], call a once but return three positions. A semaphore caps active calls, not the total number of created tasks.\n\nThe supplied original tests cover order, dedupe, concurrency cap, timeouts and empty input. They are not an exhaustive cancellation proof.",
+      "followups": [
+        "Would this task-creation strategy work for 500,000 IDs?",
+        "What limit remains local to a process?"
+      ],
+      "explanation": "Unique tasks are keyed by ID while the original ordered list controls the response. The reference additionally validates arguments and uses owned tasks.",
+      "selection": null,
+      "depends": [],
+      "source": "V1 practice pack · practice/exercise1_fetch_documents.py",
+      "contract": "Exercise 1: bounded concurrent document fetching.\n\nRequirements\n------------\n1. Fetch documents concurrently.\n2. Never have more than `max_concurrency` fetcher calls in flight.\n3. Apply `timeout_s` independently to each fetch.\n4. A timeout/error for one ID must produce None for that position,\n   not fail the whole batch.\n5. Preserve the exact input order.\n6. Duplicate IDs must only trigger ONE downstream fetch, while still\n   appearing multiple times in the returned list.\n7. Empty input should return [].\n\nConstraints\n-----------\n- Use asyncio; do not use threads.\n- Keep the public function signature unchanged.\n\nInterview follow-ups to answer after you pass the tests\n--------------------------------------------------------\n- What happens if `ids` contains 500,000 IDs?\n- Does a semaphore alone prevent creating 500,000 tasks?\n- How would you implement global concurrency limits across 20 processes?\n- Would you retry all failures? Which ones? With what backoff?\n- If the caller is cancelled, what should happen to child work?",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "from __future__ import annotations\n\nfrom dataclasses import dataclass\nfrom typing import Awaitable, Callable, Iterable\n\n\n@dataclass(frozen=True)\nclass Document:\n    id: str\n    title: str\n\n\nFetchDocument = Callable[[str], Awaitable[Document]]\n\n\nasync def fetch_documents(\n    ids: Iterable[str],\n    fetcher: FetchDocument,\n    *,\n    max_concurrency: int = 5,\n    timeout_s: float = 2.0,\n) -> list[Document | None]:\n    \"\"\"\n    Exercise 1: bounded concurrent document fetching.\n\n    Requirements\n    ------------\n    1. Fetch documents concurrently.\n    2. Never have more than `max_concurrency` fetcher calls in flight.\n    3. Apply `timeout_s` independently to each fetch.\n    4. A timeout/error for one ID must produce None for that position,\n       not fail the whole batch.\n    5. Preserve the exact input order.\n    6. Duplicate IDs must only trigger ONE downstream fetch, while still\n       appearing multiple times in the returned list.\n    7. Empty input should return [].\n\n    Constraints\n    -----------\n    - Use asyncio; do not use threads.\n    - Keep the public function signature unchanged.\n\n    Interview follow-ups to answer after you pass the tests\n    --------------------------------------------------------\n    - What happens if `ids` contains 500,000 IDs?\n    - Does a semaphore alone prevent creating 500,000 tasks?\n    - How would you implement global concurrency limits across 20 processes?\n    - Would you retry all failures? Which ones? With what backoff?\n    - If the caller is cancelled, what should happen to child work?\n    \"\"\"\n    raise NotImplementedError(\"Implement exercise 1\")\n",
+      "expected_tests": 4
+    },
+    {
+      "id": "a-llm",
+      "track": "async",
+      "kind": "code",
+      "title": "Recover a stream without mixing answers",
+      "summary": "Fallback before output, never silently after partial output.",
+      "pack": "v1",
+      "file": "practice/exercise4_llm_stream.py",
+      "workspace": "v1/practice/exercise4_llm_stream.py",
+      "tests": [
+        "tests/test_exercise4_llm_stream.py"
+      ],
+      "targets": [
+        "stream_with_fallback"
+      ],
+      "minutes": 35,
+      "xp": 120,
+      "hints": [
+        "Keep a flag tracking whether any primary chunk has been yielded.",
+        "Apply the timeout to each anext(iterator), not to constructing the iterator.",
+        "Before first output, an ordinary primary failure may use fallback. After output, re-raise. Close iterators during cleanup."
+      ],
+      "steps": [
+        "Keep the public function an async generator: it must yield.",
+        "Do not buffer a whole response before emitting it.",
+        "Read the original tests and discuss cancellation as an additional review point."
+      ],
+      "concept": "## Streaming has a commitment point\nOnce text is visible, silently adding a different model’s continuation can make an incoherent answer. The contract uses first emitted chunk as that boundary.\n\nThe original tests check fallback and timeout behaviour. They do not cover every cleanup path; passing is evidence only for those tests.",
+      "followups": [
+        "Does cancellation imply fallback?",
+        "What would you send a client after a mid-answer provider error?"
+      ],
+      "explanation": "The reference uses a timed iterator helper and an emitted flag. Ordinary errors trigger fallback only before output. Async iterator cleanup is explicit.",
+      "selection": null,
+      "depends": [],
+      "source": "V1 practice pack · practice/exercise4_llm_stream.py",
+      "contract": "Exercise 4: LLM-style streaming with fallback.\n\nThe function returns an async iterator of text chunks.\n\nRequirements\n------------\n1. Start consuming the primary stream.\n2. Each individual wait for the next chunk must time out after\n   `chunk_timeout_s`.\n3. If primary fails/times out BEFORE yielding any chunk:\n     -> switch to fallback and yield fallback chunks.\n4. If primary has already yielded at least one chunk and then fails/times out:\n     -> propagate the error; DO NOT silently switch providers.\n   Reason: mixing partial output from two models can create nonsense.\n5. Errors from fallback propagate normally.\n6. Do not swallow asyncio.CancelledError.\n7. Do not buffer the entire response before yielding it.\n\nYou may create private helper functions.\n\nInterview follow-ups\n--------------------\n- Would you retry the same provider before falling back?\n- What would you log/measure for each generation?\n- How would SSE/WebSocket client disconnect propagate cancellation?\n- How would you handle a provider that returns HTTP 429?\n- When would transparent fallback be unsafe even before the first token?\n- How could you version prompts/model parameters for reproducibility?",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "from __future__ import annotations\n\nfrom collections.abc import AsyncIterator, Callable\n\n\nStreamFactory = Callable[[], AsyncIterator[str]]\n\n\nasync def stream_with_fallback(\n    primary: StreamFactory,\n    fallback: StreamFactory,\n    *,\n    chunk_timeout_s: float = 1.0,\n) -> AsyncIterator[str]:\n    \"\"\"\n    Exercise 4: LLM-style streaming with fallback.\n\n    The function returns an async iterator of text chunks.\n\n    Requirements\n    ------------\n    1. Start consuming the primary stream.\n    2. Each individual wait for the next chunk must time out after\n       `chunk_timeout_s`.\n    3. If primary fails/times out BEFORE yielding any chunk:\n         -> switch to fallback and yield fallback chunks.\n    4. If primary has already yielded at least one chunk and then fails/times out:\n         -> propagate the error; DO NOT silently switch providers.\n       Reason: mixing partial output from two models can create nonsense.\n    5. Errors from fallback propagate normally.\n    6. Do not swallow asyncio.CancelledError.\n    7. Do not buffer the entire response before yielding it.\n\n    You may create private helper functions.\n\n    Interview follow-ups\n    --------------------\n    - Would you retry the same provider before falling back?\n    - What would you log/measure for each generation?\n    - How would SSE/WebSocket client disconnect propagate cancellation?\n    - How would you handle a provider that returns HTTP 429?\n    - When would transparent fallback be unsafe even before the first token?\n    - How could you version prompts/model parameters for reproducibility?\n    \"\"\"\n    raise NotImplementedError(\"Implement exercise 4\")\n",
+      "expected_tests": 5
+    },
+    {
+      "id": "a-refactor",
+      "track": "async",
+      "kind": "code",
+      "title": "Repair the deliberately bad async code",
+      "summary": "Fix a blocking call, shared default state and serial work.",
+      "pack": "v1",
+      "file": "practice/exercise5_refactor.py",
+      "workspace": "v1/practice/exercise5_refactor.py",
+      "tests": [
+        "tests/test_exercise5_refactor.py"
+      ],
+      "targets": [
+        "expensive_lookup",
+        "add_audit_tag",
+        "process_items"
+      ],
+      "minutes": 30,
+      "xp": 120,
+      "hints": [
+        "time.sleep blocks the event loop. Here an async sleep is allowed; a real blocking SDK might need a thread.",
+        "Use None as the default and create a fresh list inside the function. Preserve a caller-supplied list.",
+        "Run lookups concurrently, isolate normal errors, and return results in input order."
+      ],
+      "steps": [
+        "This file already contains buggy code rather than only stubs.",
+        "Repair each function without changing its observable contract.",
+        "The original timing test is a coarse check; investigate slow-machine failures before changing behaviour."
+      ],
+      "concept": "## Three bugs, different fixes\nMutable default arguments share state across calls. An async function can still block if it calls blocking code. Serial awaits do not make five operations run concurrently.\n\nExplain each mechanism; simply saying “make it async” is not enough.",
+      "followups": [
+        "Can a cancelled thread be forcefully stopped safely?",
+        "When would unbounded gather create too many tasks?"
+      ],
+      "explanation": "Fresh defaults isolate state. A nonblocking fake allows the loop to progress. A TaskGroup owns ordered per-item tasks while ordinary item errors become None.",
+      "selection": null,
+      "depends": [],
+      "source": "V1 practice pack · practice/exercise5_refactor.py",
+      "contract": "Pretend this is a blocking legacy SDK call.\n\nBUG:\n`time.sleep()` blocks the entire asyncio event loop.\nRefactor so multiple calls can make progress concurrently.\n\nYou are allowed to:\n- introduce a synchronous helper and use asyncio.to_thread(), OR\n- replace the fake with an async equivalent for this exercise.\n\nIn an interview, explain what you would do if the real dependency were a\nblocking DB/HTTP library versus an async-native library.\n\nBUG:\nmutable default argument leaks state across calls.\n\nPreserve behavior:\n    add_audit_tag(\"a\") -> [\"a\"]\n    add_audit_tag(\"b\") -> [\"b\"]\n\nDo not make callers responsible for passing [].\n\nProcess all items concurrently.\n\nRequirements\n------------\n1. Preserve input order.\n2. Run lookups concurrently.\n3. If one lookup raises a normal Exception, put None in that position.\n4. Do NOT swallow asyncio.CancelledError.\n5. The normal happy path for 5 items should take roughly one lookup duration,\n   not five lookup durations.\n\nThe starter implementation is intentionally naive.",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "from __future__ import annotations\n\nimport time\n\n\n# This file is intentionally bad.\n# Your task is to improve it while preserving the externally tested behavior.\n\n\nasync def expensive_lookup(item_id: str) -> str:\n    \"\"\"\n    Pretend this is a blocking legacy SDK call.\n\n    BUG:\n    `time.sleep()` blocks the entire asyncio event loop.\n    Refactor so multiple calls can make progress concurrently.\n\n    You are allowed to:\n    - introduce a synchronous helper and use asyncio.to_thread(), OR\n    - replace the fake with an async equivalent for this exercise.\n\n    In an interview, explain what you would do if the real dependency were a\n    blocking DB/HTTP library versus an async-native library.\n    \"\"\"\n    time.sleep(0.10)\n    return item_id.upper()\n\n\ndef add_audit_tag(tag: str, tags: list[str] = []):\n    \"\"\"\n    BUG:\n    mutable default argument leaks state across calls.\n\n    Preserve behavior:\n        add_audit_tag(\"a\") -> [\"a\"]\n        add_audit_tag(\"b\") -> [\"b\"]\n\n    Do not make callers responsible for passing [].\n    \"\"\"\n    tags.append(tag)\n    return tags\n\n\nasync def process_items(item_ids: list[str]) -> list[str | None]:\n    \"\"\"\n    Process all items concurrently.\n\n    Requirements\n    ------------\n    1. Preserve input order.\n    2. Run lookups concurrently.\n    3. If one lookup raises a normal Exception, put None in that position.\n    4. Do NOT swallow asyncio.CancelledError.\n    5. The normal happy path for 5 items should take roughly one lookup duration,\n       not five lookup durations.\n\n    The starter implementation is intentionally naive.\n    \"\"\"\n    results: list[str | None] = []\n    for item_id in item_ids:\n        try:\n            results.append(await expensive_lookup(item_id))\n        except Exception:\n            results.append(None)\n    return results\n\n\n# Interview follow-ups\n# --------------------\n# - Why is `except Exception` often too broad?\n# - Does asyncio.CancelledError inherit from Exception in the Python version\n#   you're using? Why should you verify rather than assume?\n# - What risks come with asyncio.to_thread()?\n# - Would unbounded gather() be safe for 100k items?\n# - How would you add bounded concurrency?\n",
+      "expected_tests": 4
+    },
+    {
+      "id": "p-fastapi",
+      "track": "api",
+      "kind": "code",
+      "title": "A tenant-scoped FastAPI endpoint",
+      "summary": "Build a small HTTP adapter with real request-validation tests.",
+      "pack": "v1",
+      "file": "practice/exercise2_search_api.py",
+      "workspace": "v1/practice/exercise2_search_api.py",
+      "tests": [
+        "tests/test_exercise2_search_api.py"
+      ],
+      "targets": [
+        "search_documents"
+      ],
+      "minutes": 40,
+      "xp": 120,
+      "hints": [
+        "FastAPI Query parameters can enforce numeric bounds; Header supplies X-Tenant-ID.",
+        "Strip the query and enforce the non-whitespace rule. Raise a 422 error for a short normalized query.",
+        "Implement the repository search too: tenant filter, case-insensitive substring matching, insertion order, then limit."
+      ],
+      "steps": [
+        "Implement both the repository method and route handler.",
+        "This older exercise intentionally uses substring search, unlike the V2 token scoring.",
+        "Treat X-Tenant-ID as a fake fixture, not production authentication."
+      ],
+      "concept": "## Keep the adapter small\nRequest validation → application/repository call → response model.\n\nThe simplified header is trusted only for the exercise. A real caller cannot choose its authorization scope merely by supplying a tenant header.\n\nThis unit uses the V1 API contract; do not replace it with the V2 ranking rule.",
+      "followups": [
+        "Where would authenticated identity come from?",
+        "Which logic should remain testable without HTTP?"
+      ],
+      "explanation": "The reference validates inputs and maps repository records to response models. Its in-memory repository applies tenant restrictions before returning matches.",
+      "selection": null,
+      "depends": [],
+      "source": "V1 practice pack · practice/exercise2_search_api.py",
+      "contract": "Exercise 2: implement this FastAPI endpoint.\n\nAPI contract\n------------\nGET /search?query=<text>&limit=<n>\n\nRequired header:\n    X-Tenant-ID\n\nRequirements\n------------\n1. `query` is required and must contain at least 2 non-whitespace characters.\n2. `limit` defaults to 20 and must be between 1 and 100.\n3. `X-Tenant-ID` is required.\n4. Results must NEVER cross tenant boundaries.\n5. Map StoredDocument -> SearchResult.\n6. Use FastAPI validation where appropriate rather than hand-writing every\n   possible 400 response.\n\nInterview follow-ups\n--------------------\n- Why should tenant isolation live below the route handler too?\n- Would you trust an application-layer filter alone in production?\n- What database index might help a real search implementation?\n- How would authn/authz differ from simply accepting X-Tenant-ID?\n- Where would tracing/metrics go?",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "from __future__ import annotations\n\nfrom dataclasses import dataclass\n\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\n\n@dataclass(frozen=True)\nclass StoredDocument:\n    tenant_id: str\n    document_id: str\n    title: str\n    text: str\n\n\nclass SearchResult(BaseModel):\n    document_id: str\n    title: str\n\n\nclass InMemoryRepository:\n    def __init__(self, documents: list[StoredDocument]) -> None:\n        self.documents = documents\n\n    async def search(\n        self,\n        *,\n        tenant_id: str,\n        query: str,\n        limit: int,\n    ) -> list[StoredDocument]:\n        \"\"\"\n        TODO: implement repository search.\n\n        Keep tenant filtering here, not only in the HTTP handler.\n\n        For this exercise, \"search\" is deliberately simple:\n        - case-insensitive substring search in title OR text\n        - preserve repository insertion order\n        - return at most `limit` results\n        \"\"\"\n        raise NotImplementedError\n\n\nrepository = InMemoryRepository(\n    [\n        StoredDocument(\"firm-a\", \"a-1\", \"Acme Contract\", \"Termination clause\"),\n        StoredDocument(\"firm-a\", \"a-2\", \"Employment Note\", \"Compensation analysis\"),\n        StoredDocument(\"firm-b\", \"b-1\", \"Acme Litigation\", \"Private strategy\"),\n    ]\n)\n\napp = FastAPI()\n\n\n@app.get(\"/search\", response_model=list[SearchResult])\nasync def search_documents():\n    \"\"\"\n    Exercise 2: implement this FastAPI endpoint.\n\n    API contract\n    ------------\n    GET /search?query=<text>&limit=<n>\n\n    Required header:\n        X-Tenant-ID\n\n    Requirements\n    ------------\n    1. `query` is required and must contain at least 2 non-whitespace characters.\n    2. `limit` defaults to 20 and must be between 1 and 100.\n    3. `X-Tenant-ID` is required.\n    4. Results must NEVER cross tenant boundaries.\n    5. Map StoredDocument -> SearchResult.\n    6. Use FastAPI validation where appropriate rather than hand-writing every\n       possible 400 response.\n\n    Interview follow-ups\n    --------------------\n    - Why should tenant isolation live below the route handler too?\n    - Would you trust an application-layer filter alone in production?\n    - What database index might help a real search implementation?\n    - How would authn/authz differ from simply accepting X-Tenant-ID?\n    - Where would tracing/metrics go?\n    \"\"\"\n    raise NotImplementedError(\"Implement exercise 2\")\n",
+      "expected_tests": 5
+    },
+    {
+      "id": "p-ingest",
+      "track": "api",
+      "kind": "code",
+      "title": "Idempotent ingestion, first principles",
+      "summary": "A smaller update contract before source-version event handling.",
+      "pack": "v1",
+      "file": "practice/exercise3_ingestion.py",
+      "workspace": "v1/practice/exercise3_ingestion.py",
+      "tests": [
+        "tests/test_exercise3_ingestion.py"
+      ],
+      "targets": [
+        "ingest_documents"
+      ],
+      "minutes": 30,
+      "xp": 120,
+      "hints": [
+        "Identify a document with tenant_id plus external_id.",
+        "Only a content or source change increments the local version. Identical input is a no-op.",
+        "Process duplicates within one batch in input order so each change increments exactly once."
+      ],
+      "steps": [
+        "Start new records at local version 1.",
+        "Keep identical repeated ingests unchanged.",
+        "This is not the V2 source-revision/tombstone contract."
+      ],
+      "concept": "## Local change counter\nInsert → version 1. Identical repeat → still 1. Content or source changes → version 2.\n\nNo network, database or concurrency is required in the coding part. Then discuss how a database could preserve the same semantics.",
+      "followups": [
+        "Is SELECT then INSERT race safe?",
+        "How would you make downstream indexing idempotent too?"
+      ],
+      "explanation": "The reference keys by the composite identity, compares the two mutable fields, and increments only when the stored payload changes.",
+      "selection": null,
+      "depends": [],
+      "source": "V1 practice pack · practice/exercise3_ingestion.py",
+      "contract": "Exercise 3: idempotent document ingestion.\n\nIdentity\n--------\nA document is uniquely identified by:\n    (tenant_id, external_id)\n\nRequirements\n------------\n1. First ingestion creates the document with version=1.\n2. Re-ingesting identical content/source is a no-op:\n   version must NOT increase.\n3. If content OR source changes, update the existing document and increment\n   version by exactly 1.\n4. Same external_id in different tenants represents two independent docs.\n5. If the same identity appears multiple times in one input batch, process\n   it in input order. The final stored state should reflect the final item.\n\nKeep it simple. This is an in-memory exercise.\n\nInterview follow-ups\n--------------------\n- Translate this to PostgreSQL. What UNIQUE constraint would you use?\n- Would SELECT-then-INSERT be race safe?\n- How would INSERT ... ON CONFLICT help?\n- Where would you draw the transaction boundary for a batch?\n- If ingestion triggers embedding/indexing, how would you make that side\n  effect idempotent too?\n- What happens when two workers ingest updates concurrently?",
+      "tags": [
+        "Python 3.13+",
+        "Real pytest"
+      ],
+      "starter": "from __future__ import annotations\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass IncomingDocument:\n    tenant_id: str\n    external_id: str\n    content: str\n    source: str\n\n\n@dataclass\nclass StoredDocument:\n    tenant_id: str\n    external_id: str\n    content: str\n    source: str\n    version: int\n\n\nclass InMemoryDocumentStore:\n    def __init__(self) -> None:\n        # You may change the internal representation.\n        self._documents: dict[tuple[str, str], StoredDocument] = {}\n\n    def get(self, tenant_id: str, external_id: str) -> StoredDocument | None:\n        return self._documents.get((tenant_id, external_id))\n\n    def all(self) -> list[StoredDocument]:\n        return list(self._documents.values())\n\n\ndef ingest_documents(\n    store: InMemoryDocumentStore,\n    documents: list[IncomingDocument],\n) -> None:\n    \"\"\"\n    Exercise 3: idempotent document ingestion.\n\n    Identity\n    --------\n    A document is uniquely identified by:\n        (tenant_id, external_id)\n\n    Requirements\n    ------------\n    1. First ingestion creates the document with version=1.\n    2. Re-ingesting identical content/source is a no-op:\n       version must NOT increase.\n    3. If content OR source changes, update the existing document and increment\n       version by exactly 1.\n    4. Same external_id in different tenants represents two independent docs.\n    5. If the same identity appears multiple times in one input batch, process\n       it in input order. The final stored state should reflect the final item.\n\n    Keep it simple. This is an in-memory exercise.\n\n    Interview follow-ups\n    --------------------\n    - Translate this to PostgreSQL. What UNIQUE constraint would you use?\n    - Would SELECT-then-INSERT be race safe?\n    - How would INSERT ... ON CONFLICT help?\n    - Where would you draw the transaction boundary for a batch?\n    - If ingestion triggers embedding/indexing, how would you make that side\n      effect idempotent too?\n    - What happens when two workers ingest updates concurrently?\n    \"\"\"\n    raise NotImplementedError(\"Implement exercise 3\")\n",
+      "expected_tests": 5
+    },
+    {
+      "id": "i-intro",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Tell me about yourself",
+      "summary": "Give a 75–90 second introduction connecting your backend experience, ownership and applied-AI work.",
+      "question": "Give a 75–90 second introduction connecting your backend experience, ownership and applied-AI work.",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Clear present-day engineering identity",
+        "A concise overview of relevant experience",
+        "One concrete result with your personal contribution",
+        "A clear area to explore next"
+      ],
+      "cues": [
+        [
+          "Context",
+          [
+            "project",
+            "backend",
+            "system"
+          ]
+        ],
+        [
+          "Outcome",
+          [
+            "result",
+            "performance",
+            "improved"
+          ]
+        ],
+        [
+          "Learning",
+          [
+            "learn",
+            "explore",
+            "build"
+          ]
+        ],
+        [
+          "Direction",
+          [
+            "next",
+            "product",
+            "goal"
+          ]
+        ]
+      ],
+      "guide": "Give a short overview of what you build, one project you can explain in detail, and a technical area you want to explore next.",
+      "followups": [
+        "Which result would you like me to dig into?",
+        "What does hands-on ownership mean to you?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-performance",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Explain a measured performance improvement",
+      "summary": "Explain the performance problem you improved, then go one technical level deeper.",
+      "question": "Explain the performance problem you improved, then go one technical level deeper.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "The workflow and business consequence are understandable",
+        "I describe the ACTUAL bottleneck, not an invented one",
+        "My action is distinct from the team’s work",
+        "Measurement, result and a trade-off are explicit"
+      ],
+      "cues": [
+        [
+          "Problem",
+          [
+            "slow",
+            "latency",
+            "performance",
+            "process",
+            "bottleneck"
+          ]
+        ],
+        [
+          "Evidence of investigation",
+          [
+            "measured",
+            "profil",
+            "benchmark",
+            "query",
+            "trace",
+            "database"
+          ]
+        ],
+        [
+          "Personal action",
+          [
+            "i changed",
+            "i reworked",
+            "i optim",
+            "i implemented",
+            "i identified"
+          ]
+        ],
+        [
+          "Result",
+          [
+            "faster",
+            "result",
+            "latency",
+            "throughput"
+          ]
+        ]
+      ],
+      "guide": "Choose a performance improvement you measured. Explain the baseline, how you located the bottleneck, the change, and the result. Include measurement conditions and a trade-off.",
+      "followups": [
+        "What specifically was slow?",
+        "How did you compare the before and after?",
+        "What did your change make worse?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-ownership",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Taking ownership of a system",
+      "summary": "Describe how you took responsibility for maintaining and improving a system.",
+      "question": "Describe how you took responsibility for maintaining and improving a system.",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Explains the system and why ownership mattered",
+        "Names decisions and coordination I personally owned",
+        "Includes mentoring and ongoing hands-on work",
+        "Uses accurate scope and avoids overstating the contractual title"
+      ],
+      "cues": [
+        [
+          "Situation",
+          [
+            "system",
+            "responsibility",
+            "handover",
+            "ownership"
+          ]
+        ],
+        [
+          "Scope",
+          [
+            "backlog",
+            "release",
+            "testing",
+            "architecture"
+          ]
+        ],
+        [
+          "People",
+          [
+            "mentor",
+            "junior",
+            "stakeholder",
+            "team"
+          ]
+        ],
+        [
+          "Result",
+          [
+            "continuity",
+            "stable",
+            "emergency",
+            "reliability"
+          ]
+        ]
+      ],
+      "guide": "Describe a system you took responsibility for. Explain how you prioritized work, coordinated changes, supported teammates and checked reliability.",
+      "followups": [
+        "Which decision was yours?",
+        "How did you prevent becoming the bottleneck?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-project",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Explain a project to an engineer",
+      "summary": "Describe one user workflow and the system that makes it dependable.",
+      "question": "Describe one user workflow and the system that makes it dependable.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "Begins with the user task, not a technology list",
+        "Explains the main flow and data boundaries",
+        "Names a failure path and recovery mechanism",
+        "Separates built features from unverified traction claims"
+      ],
+      "cues": [
+        [
+          "User workflow",
+          [
+            "content",
+            "publish",
+            "schedule",
+            "plan",
+            "user"
+          ]
+        ],
+        [
+          "AI workflow",
+          [
+            "model",
+            "llm",
+            "retrieval",
+            "prompt"
+          ]
+        ],
+        [
+          "Reliability",
+          [
+            "retry",
+            "idempot",
+            "lease",
+            "validation",
+            "concurrency"
+          ]
+        ],
+        [
+          "Operations",
+          [
+            "cost",
+            "metric",
+            "logging",
+            "observab"
+          ]
+        ]
+      ],
+      "guide": "Choose a project you built. Trace one user workflow through the main components, data boundaries and failure handling. Distinguish implemented features from future ideas.",
+      "followups": [
+        "Why did you choose that architecture?",
+        "What happens on a provider timeout?",
+        "What would you build or simplify next?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-why",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Choose a useful problem",
+      "summary": "Explain a user problem you would like to solve and how you would test your approach.",
+      "question": "Explain a user problem you would like to solve and how you would test your approach.",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Names the user problem in concrete language",
+        "Explains why that problem interests me",
+        "Connects relevant experience to the proposed solution",
+        "Avoids unverified business claims and excessive flattery"
+      ],
+      "cues": [
+        [
+          "User problem",
+          [
+            "user",
+            "workflow",
+            "problem",
+            "need"
+          ]
+        ],
+        [
+          "Value",
+          [
+            "time",
+            "cost",
+            "expensive",
+            "hours",
+            "money"
+          ]
+        ],
+        [
+          "Personal connection",
+          [
+            "i",
+            "my",
+            "experience"
+          ]
+        ],
+        [
+          "Engineering fit",
+          [
+            "reliab",
+            "backend",
+            "system",
+            "product",
+            "ownership"
+          ]
+        ]
+      ],
+      "guide": "Choose a user problem worth solving. Explain the current workflow, where it costs time or effort, and how you would test whether your proposed improvement helps.",
+      "followups": [
+        "Why prioritize this problem?",
+        "What would make the product genuinely useful to a user?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-next",
+      "track": "interview",
+      "kind": "interview",
+      "title": "What would you build next?",
+      "summary": "Describe a small project that would help you learn something new.",
+      "question": "Describe a small project that would help you learn something new.",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Names a concrete learning goal",
+        "Defines a manageable scope",
+        "Explains an implementation approach",
+        "Describes how to evaluate the result"
+      ],
+      "cues": [
+        [
+          "Goal",
+          [
+            "learn",
+            "goal",
+            "explore",
+            "project"
+          ]
+        ],
+        [
+          "Direction",
+          [
+            "product",
+            "applied ai",
+            "new",
+            "problem"
+          ]
+        ],
+        [
+          "Hands-on scope",
+          [
+            "hands-on",
+            "hands on",
+            "build",
+            "engineer"
+          ]
+        ],
+        [
+          "Team",
+          [
+            "team",
+            "collaborat",
+            "mentor",
+            "ownership"
+          ]
+        ]
+      ],
+      "guide": "Pick a technical area you want to explore. Describe a small project, what you want to learn, and how you would evaluate the result.",
+      "followups": [
+        "What is the smallest useful version?",
+        "How would you know you had learned enough?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-incident",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Walk through a real incident",
+      "summary": "Choose one actual production incident, not a composite of several.",
+      "question": "Choose one actual production incident, not a composite of several.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "Names a specific event and impact",
+        "Explains diagnosis and my own actions",
+        "Separates service restoration from recurrence prevention",
+        "Provides a truthful result and what I learned"
+      ],
+      "cues": [
+        [
+          "Situation",
+          [
+            "incident",
+            "failed",
+            "outage",
+            "production",
+            "error"
+          ]
+        ],
+        [
+          "Investigation",
+          [
+            "log",
+            "trace",
+            "investig",
+            "repro",
+            "upstream"
+          ]
+        ],
+        [
+          "Action",
+          [
+            "i",
+            "rollback",
+            "fix",
+            "escalat"
+          ]
+        ],
+        [
+          "Learning",
+          [
+            "prevent",
+            "learn",
+            "runbook",
+            "monitor",
+            "follow-up"
+          ]
+        ]
+      ],
+      "guide": "Choose an incident you can discuss safely. Explain the impact, investigation, recovery and prevention. Keep your actions distinct from the team’s work.",
+      "followups": [
+        "How did you establish the blast radius?",
+        "What changed after recovery?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-failure",
+      "track": "interview",
+      "kind": "interview",
+      "title": "A mistake you actually made",
+      "summary": "Describe a wrong assumption or decision, its consequence, and what changed afterward.",
+      "question": "Describe a wrong assumption or decision, its consequence, and what changed afterward.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "I own a genuine mistake rather than someone else’s failure",
+        "The consequence is specific",
+        "I explain the correction and changed behaviour",
+        "Uses a specific example and an honest outcome"
+      ],
+      "cues": [
+        [
+          "Ownership",
+          [
+            "i assumed",
+            "i chose",
+            "i missed",
+            "my mistake",
+            "i underestimated"
+          ]
+        ],
+        [
+          "Consequence",
+          [
+            "caused",
+            "led to",
+            "result",
+            "delay",
+            "impact"
+          ]
+        ],
+        [
+          "Correction",
+          [
+            "changed",
+            "correct",
+            "fix",
+            "revis"
+          ]
+        ],
+        [
+          "Learning",
+          [
+            "learn",
+            "now",
+            "since",
+            "next time"
+          ]
+        ]
+      ],
+      "guide": "Describe a decision you would change, its consequence, how you corrected it, and what you do differently now. Use a specific example.",
+      "followups": [
+        "How did you communicate the mistake?",
+        "What would you do differently next time?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-stakeholders",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Explain a trade-off to the business",
+      "summary": "Use a project discussion to show how you communicate technical risk.",
+      "question": "Use a project discussion to show how you communicate technical risk.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "Explains the stakeholder’s need",
+        "Translates the choice into risk, time, cost or effort",
+        "Shows listening and a concrete trade-off",
+        "States the actual decision and outcome"
+      ],
+      "cues": [
+        [
+          "Stakeholder",
+          [
+            "team",
+            "user",
+            "stakeholder",
+            "product"
+          ]
+        ],
+        [
+          "Trade-off",
+          [
+            "risk",
+            "cost",
+            "time",
+            "trade",
+            "option"
+          ]
+        ],
+        [
+          "Listening",
+          [
+            "understand",
+            "asked",
+            "listen",
+            "clarif"
+          ]
+        ],
+        [
+          "Outcome",
+          [
+            "decided",
+            "agreed",
+            "result",
+            "delivered"
+          ]
+        ]
+      ],
+      "guide": "Choose a technical decision involving different priorities. Explain the options in terms of risk, time and cost, how you gathered feedback, and the outcome.",
+      "followups": [
+        "What was the other person optimizing for?",
+        "What evidence could change your mind?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-mentoring",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Mentor through the reasoning",
+      "summary": "How do you help a junior engineer become more independent?",
+      "question": "How do you help a junior engineer become more independent?",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Uses a concrete mentoring or review example",
+        "Explains the why, not only the correction",
+        "Keeps feedback clear and respectful",
+        "Describes how independence improved without invented numbers"
+      ],
+      "cues": [
+        [
+          "Context",
+          [
+            "junior",
+            "review",
+            "mentor",
+            "colleague"
+          ]
+        ],
+        [
+          "Reasoning",
+          [
+            "why",
+            "reason",
+            "trade",
+            "understand"
+          ]
+        ],
+        [
+          "Feedback",
+          [
+            "feedback",
+            "explain",
+            "question",
+            "discussion"
+          ]
+        ],
+        [
+          "Independence",
+          [
+            "independent",
+            "next",
+            "own",
+            "learn"
+          ]
+        ]
+      ],
+      "guide": "Use a concrete mentoring or code-review example. Explain how you helped someone understand the reasoning and take the next step independently.",
+      "followups": [
+        "When do you let someone solve it themselves?",
+        "What if the issue risks a production failure?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-learning",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Learn a new system quickly",
+      "summary": "Explain how you build a useful understanding of an unfamiliar system.",
+      "question": "Explain how you build a useful understanding of an unfamiliar system.",
+      "minutes": 2,
+      "xp": 50,
+      "criteria": [
+        "Names the unfamiliar system/context",
+        "Explains a deliberate learning approach",
+        "Connects business behaviour to code and data",
+        "Ends with actual functional/technical ownership"
+      ],
+      "cues": [
+        [
+          "Context",
+          [
+            "project",
+            "system",
+            "codebase",
+            "service"
+          ]
+        ],
+        [
+          "Approach",
+          [
+            "trace",
+            "workflow",
+            "read",
+            "question",
+            "learn"
+          ]
+        ],
+        [
+          "Domain",
+          [
+            "business",
+            "functional",
+            "data",
+            "architecture"
+          ]
+        ],
+        [
+          "Result",
+          [
+            "ownership",
+            "independent",
+            "responsib"
+          ]
+        ]
+      ],
+      "guide": "Describe how you learned an unfamiliar system. Trace workflows through code and data, test assumptions, and explain what let you work independently.",
+      "followups": [
+        "How would you repeat that in a Python codebase?",
+        "How do you know your mental model is wrong?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "i-ai",
+      "track": "interview",
+      "kind": "interview",
+      "title": "Reliable AI, not a magic prompt",
+      "summary": "Explain controls you have actually built around variable model output.",
+      "question": "Explain controls you have actually built around variable model output.",
+      "minutes": 3,
+      "xp": 50,
+      "criteria": [
+        "Separates structured-output validity from factual accuracy",
+        "Explains context/source grounding and limitations",
+        "Includes observable, recoverable failures",
+        "Does not claim hallucination is solved"
+      ],
+      "cues": [
+        [
+          "Grounding",
+          [
+            "retriev",
+            "context",
+            "source",
+            "rag"
+          ]
+        ],
+        [
+          "Validation",
+          [
+            "schema",
+            "structured",
+            "validat"
+          ]
+        ],
+        [
+          "Recovery",
+          [
+            "retry",
+            "failure",
+            "fallback",
+            "recover"
+          ]
+        ],
+        [
+          "Visibility",
+          [
+            "metric",
+            "cost",
+            "observab",
+            "log"
+          ]
+        ]
+      ],
+      "guide": "Discuss schema validation, retrieval context, retries and observability. Explain their limits: a valid response or a citation alone does not establish factual correctness.",
+      "followups": [
+        "How do you evaluate output beyond schema validation?",
+        "When would fallback be unsafe?"
+      ],
+      "source": "JudgeLab engineering discussion exercise",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "s-search",
+      "track": "architecture",
+      "kind": "interview",
+      "title": "Search at a million documents",
+      "summary": "Your local scan works. Now design the next step for millions of documents while preserving permissions.",
+      "question": "Your local scan works. Now design the next step for millions of documents while preserving permissions.",
+      "minutes": 8,
+      "xp": 50,
+      "criteria": [
+        "States workload and latency assumptions before choosing infrastructure",
+        "Moves candidate filtering/ranking to an appropriate retrieval layer",
+        "Explains permission updates, caches and top-K correctness",
+        "Names a measurement and one deliberate trade-off"
+      ],
+      "cues": [
+        [
+          "Constraints",
+          [
+            "latency",
+            "volume",
+            "million",
+            "size",
+            "query"
+          ]
+        ],
+        [
+          "Retrieval",
+          [
+            "index",
+            "inverted",
+            "vector",
+            "rank",
+            "filter"
+          ]
+        ],
+        [
+          "Permissions",
+          [
+            "permission",
+            "tenant",
+            "access",
+            "cache"
+          ]
+        ],
+        [
+          "Evidence",
+          [
+            "metric",
+            "measure",
+            "profile",
+            "benchmark"
+          ]
+        ]
+      ],
+      "guide": "Start from the current invariant: return the best eligible results. Discuss what moves into the retrieval engine, what must not be loaded per request, and how permission changes affect indexes/cache keys. There is no mandatory infrastructure vendor. Counts and caches can leak information even when document bodies are filtered.",
+      "followups": [
+        "What happens immediately after access is revoked?",
+        "How would you know the index rather than I/O is the bottleneck?"
+      ],
+      "source": "V2 ARCHITECTURE_FOLLOWUPS.md; playground self-review rubric",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "s-ingestion",
+      "track": "architecture",
+      "kind": "interview",
+      "title": "An ingestion path that can recover",
+      "summary": "Sketch connector → version store → extraction/chunking → indexing → query, and explain failures.",
+      "question": "Sketch connector → version store → extraction/chunking → indexing → query, and explain failures.",
+      "minutes": 8,
+      "xp": 50,
+      "criteria": [
+        "Names a source of truth and component responsibilities",
+        "Explains duplicates, retries, stale events and deletion",
+        "Closes or explicitly handles the database commit/publish gap",
+        "Carries identity/version through asynchronous work"
+      ],
+      "cues": [
+        [
+          "Components",
+          [
+            "connector",
+            "store",
+            "worker",
+            "index",
+            "queue"
+          ]
+        ],
+        [
+          "Correctness",
+          [
+            "version",
+            "idempot",
+            "duplicate",
+            "tombstone"
+          ]
+        ],
+        [
+          "Publish gap",
+          [
+            "outbox",
+            "transaction",
+            "commit",
+            "publish"
+          ]
+        ],
+        [
+          "Recovery",
+          [
+            "retry",
+            "replay",
+            "dead",
+            "failure"
+          ]
+        ]
+      ],
+      "guide": "Use the V2 event semantics as a starting point, not “exactly once” as an explanation. Describe how a durable outbox or an explicit reconciliation mechanism handles committed-but-not-published updates. Before a worker writes an embedding, compare the source revision against current state.",
+      "followups": [
+        "Can a slow worker overwrite newer content?",
+        "How do deletions reach every derived store?"
+      ],
+      "source": "V2 ARCHITECTURE_FOLLOWUPS.md; playground self-review rubric",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "s-chat",
+      "track": "architecture",
+      "kind": "interview",
+      "title": "Chat with referenced documents",
+      "summary": "Design the boundary from retrieval to generated answer and references.",
+      "question": "Design the boundary from retrieval to generated answer and references.",
+      "minutes": 8,
+      "xp": 50,
+      "criteria": [
+        "Checks access before content reaches the model",
+        "Keeps stable document/chunk identities through context selection",
+        "Handles no eligible context and unknown reference labels",
+        "Distinguishes provenance, schema validity and factual support"
+      ],
+      "cues": [
+        [
+          "Access",
+          [
+            "permission",
+            "access",
+            "tenant"
+          ]
+        ],
+        [
+          "Context",
+          [
+            "budget",
+            "chunk",
+            "context",
+            "retriev"
+          ]
+        ],
+        [
+          "References",
+          [
+            "citation",
+            "reference",
+            "source",
+            "label"
+          ]
+        ],
+        [
+          "Limits",
+          [
+            "no context",
+            "empty",
+            "unknown",
+            "support",
+            "entail"
+          ]
+        ]
+      ],
+      "guide": "The supplied context exercise preserves a reference mapping and a word budget. A production model needs its actual tokenizer/context budget and an output-evaluation approach. Reject unknown labels, but remember that a known label alone does not prove that its source supports a claim.",
+      "followups": [
+        "Where do you enforce permissions before prompting?",
+        "What would you return with no eligible context?"
+      ],
+      "source": "V2 ARCHITECTURE_FOLLOWUPS.md; playground self-review rubric",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "s-latency",
+      "track": "architecture",
+      "kind": "interview",
+      "title": "One slow source, one useful answer",
+      "summary": "Several retrieval sources have different latency and error rates. Design deadlines and partial results.",
+      "question": "Several retrieval sources have different latency and error rates. Design deadlines and partial results.",
+      "minutes": 8,
+      "xp": 50,
+      "criteria": [
+        "Distinguishes operation deadline from per-source timeout",
+        "Makes partial failure visible to the caller",
+        "Owns cancellation and resource cleanup",
+        "Discusses replica-level limits and useful metrics"
+      ],
+      "cues": [
+        [
+          "Deadlines",
+          [
+            "deadline",
+            "timeout",
+            "budget"
+          ]
+        ],
+        [
+          "Partial result",
+          [
+            "partial",
+            "failed",
+            "complete"
+          ]
+        ],
+        [
+          "Cleanup",
+          [
+            "cancel",
+            "cleanup",
+            "task"
+          ]
+        ],
+        [
+          "Operations",
+          [
+            "replica",
+            "global",
+            "metric",
+            "latency",
+            "queue"
+          ]
+        ]
+      ],
+      "guide": "A local semaphore is not a fleet-wide limit. Explain what happens while waiting for a slot, after caller cancellation and when a source returns no hits versus fails. Measure queues, active calls, latency and failure rates before adding more capacity.",
+      "followups": [
+        "Which timeout starts when a slot is acquired?",
+        "What changes across twenty processes?"
+      ],
+      "source": "V2 ARCHITECTURE_FOLLOWUPS.md; playground self-review rubric",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    },
+    {
+      "id": "s-api",
+      "track": "architecture",
+      "kind": "interview",
+      "title": "Where the HTTP handler should stop",
+      "summary": "Wrap your search function in an API without mixing every concern into the route.",
+      "question": "Wrap your search function in an API without mixing every concern into the route.",
+      "minutes": 8,
+      "xp": 50,
+      "criteria": [
+        "Separates validation/transport from application logic and storage",
+        "Uses trusted authenticated identity rather than an arbitrary tenant header",
+        "Describes error semantics and request-scoped observability",
+        "Keeps the core function testable without HTTP"
+      ],
+      "cues": [
+        [
+          "Layers",
+          [
+            "handler",
+            "route",
+            "service",
+            "repository",
+            "function"
+          ]
+        ],
+        [
+          "Identity",
+          [
+            "auth",
+            "trusted",
+            "tenant",
+            "permission"
+          ]
+        ],
+        [
+          "Errors",
+          [
+            "status",
+            "error",
+            "validation",
+            "timeout"
+          ]
+        ],
+        [
+          "Testing",
+          [
+            "test",
+            "fake",
+            "mock",
+            "dependency"
+          ]
+        ]
+      ],
+      "guide": "FastAPI is an adapter, not the architecture itself. The original header-based exercise deliberately fakes trusted identity. Discuss authentication, authorization and query-layer enforcement separately. Prefer small testable boundaries over a speculative framework.",
+      "followups": [
+        "Can the user choose a tenant just by sending a header?",
+        "What is an integration test versus a unit test here?"
+      ],
+      "source": "V2 ARCHITECTURE_FOLLOWUPS.md; playground self-review rubric",
+      "tags": [
+        "Rubric review",
+        "No AI scoring"
+      ]
+    }
+  ]
+}

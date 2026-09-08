@@ -1,0 +1,114 @@
+{
+  "g-score": {
+    "success": true,
+    "passed": 9,
+    "collected": 9,
+    "elapsed": 4.038,
+    "python": "3.13.5"
+  },
+  "g-permissions": {
+    "success": true,
+    "passed": 7,
+    "collected": 7,
+    "elapsed": 3.976,
+    "python": "3.13.5"
+  },
+  "g-categories": {
+    "success": true,
+    "passed": 7,
+    "collected": 7,
+    "elapsed": 3.922,
+    "python": "3.13.5"
+  },
+  "g-search": {
+    "success": true,
+    "passed": 44,
+    "collected": 44,
+    "elapsed": 4.112,
+    "python": "3.13.5"
+  },
+  "c-latest": {
+    "success": true,
+    "passed": 6,
+    "collected": 6,
+    "elapsed": 3.751,
+    "python": "3.13.5"
+  },
+  "c-counts": {
+    "success": true,
+    "passed": 3,
+    "collected": 3,
+    "elapsed": 3.824,
+    "python": "3.13.5"
+  },
+  "c-search": {
+    "success": true,
+    "passed": 16,
+    "collected": 16,
+    "elapsed": 3.724,
+    "python": "3.13.5"
+  },
+  "c-context": {
+    "success": true,
+    "passed": 14,
+    "collected": 14,
+    "elapsed": 3.845,
+    "python": "3.13.5"
+  },
+  "c-events": {
+    "success": true,
+    "passed": 17,
+    "collected": 17,
+    "elapsed": 3.951,
+    "python": "3.13.5"
+  },
+  "a-federated": {
+    "success": true,
+    "passed": 12,
+    "collected": 12,
+    "elapsed": 3.913,
+    "python": "3.13.5"
+  },
+  "a-parser": {
+    "success": true,
+    "passed": 20,
+    "collected": 20,
+    "elapsed": 3.842,
+    "python": "3.13.5"
+  },
+  "a-fetch": {
+    "success": true,
+    "passed": 4,
+    "collected": 4,
+    "elapsed": 3.788,
+    "python": "3.13.5"
+  },
+  "a-llm": {
+    "success": true,
+    "passed": 5,
+    "collected": 5,
+    "elapsed": 3.723,
+    "python": "3.13.5"
+  },
+  "a-refactor": {
+    "success": true,
+    "passed": 4,
+    "collected": 4,
+    "elapsed": 3.999,
+    "python": "3.13.5"
+  },
+  "p-fastapi": {
+    "success": true,
+    "passed": 5,
+    "collected": 5,
+    "elapsed": 5.169,
+    "python": "3.13.5"
+  },
+  "p-ingest": {
+    "success": true,
+    "passed": 5,
+    "collected": 5,
+    "elapsed": 3.081,
+    "python": "3.13.5"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "guided/tests/test_original_contract.py": "c2a971045eaee56729ca8c38efc93cc417cb853577bea712ba4f76ae8f0f56f7",
+  "guided/tests/test_setup.py": "af7dd47006e030638c1ce7e2838ccd1808f84d6febb4f64409105280cb7596e7",
+  "guided/tests/test_stages.py": "fa9bfa1612875b04ea301288f12af85ead82447e1ce3310e4c18f0f34487b3b5",
+  "v2/tests/test_01_warmup.py": "031835d7ca30a398b2afa41caa8a908c2fe9f08a8a081169d5a0fabfc4590d22",
+  "v2/tests/test_02_search.py": "289fff5ee2378b0a38780b81b7b84cef1e422403d465521de1b1ef3caccd9056",
+  "v2/tests/test_03_context.py": "652c0d4c6d78b2bd73f1edcfe4af0bc86ca4a6eeaa69ca1ef113631a33209ff4",
+  "v2/tests/test_04_ingestion.py": "9835d62c27a1dd95da214670a73b1ebf7fd74c9e059d4779a2a9f0230492f9ba",
+  "v2/tests/test_05_async.py": "ee1a7a22f7763df03bed8d25c6170a03644114734e0754156e0df55e66840b87",
+  "v2/tests/test_06_stream_bonus.py": "8b4b9e6e96019b6d346c1050dad82e1c9380c3c754847c402ae8bf0412f458c8",
+  "v2/tests/test_setup.py": "b4d999f5aec449d16e710b9dcb311e11d3e477cb922ad718b5a89185e05cf383",
+  "v1/tests/test_exercise3_ingestion.py": "8ade3c28b105cd29b82f039919cda6c6c57c8b6640a1e581fee63086818a1bd8",
+  "v1/tests/test_exercise5_refactor.py": "6b5eebbe168cbc8628e87125aa906fd72997afed869f65c4f66bbb6f03c62585",
+  "v1/tests/test_exercise2_search_api.py": "940c5530c6b51680e694a1b5113f25ad7ef180315e42d1cb1641e3b8f36c8f62",
+  "v1/tests/test_exercise1_fetch_documents.py": "44f0c0e50a1c7b365c0b9c5cf8e198dfc015bee44deee626ad51e52a7e906c40",
+  "v1/tests/test_exercise4_llm_stream.py": "ab7b567219c451e87854a0a1c6f79cc46c0cab3eced1f06a2a06c26f7f4c6e40"
+}
