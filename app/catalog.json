@@ -282,7 +282,7 @@
       "track": "guided",
       "kind": "code",
       "title": "Score one document",
-      "summary": "Turn a query into a number. No search engine experience needed.",
+      "summary": "Learn how word matches become a score, then write one Python function.",
       "pack": "guided",
       "file": "exercise.py",
       "workspace": "guided/exercise.py",
@@ -300,12 +300,12 @@
         "Start with score = 0. Add 3 for title membership and 1 for text membership. Return the number without mutating the query set."
       ],
       "steps": [
-        "Read the Document model in Reference files. You only need title and text here.",
-        "Try the hand calculation below before coding.",
-        "Edit score_document only. Leave the other stage functions for later.",
-        "Run the tests. Open the failing case and compare expected versus actual."
+        "Read the explanation and follow each row of the worked example.",
+        "Try the “Check your understanding” question, then reveal the explanation.",
+        "Open the workspace and edit only `score_document`. Use `document.title`, `document.text` and the provided `terms()` helper.",
+        "Run tests to compare your returned numbers with the expected numbers. The 9 cases check repetition, whole words, empty queries and other scoring rules."
       ],
-      "concept": "## Your first scoring rule\nThe query is `termination notice`.\n\nTitle: `Termination clause`\nBody: `Notice of termination.`\n\n`termination` earns 3 + 1. `notice` earns 0 + 1. Total: **5**.\n\nThis is a toy, whole-token scoring rule. Repeated words earn no extra points. Use it to practise deterministic ranking.\n\n```python\nfrom text_tools import terms\nassert terms(\"NOTICE notice!\") == {\"notice\"}\n```",
+      "concept": "## Help someone find a document\n\nSomeone types `termination notice` into a search box to find documents about ending an agreement. That text is the **query**: what the person is looking for. A **document** is one saved record with a title and a body (its main text).\n\nA search engine needs a way to decide which documents to show first. In this exercise, a **score** is a number of points for matching query words. Later, you will sort documents from highest to lowest score. That ordering is called **ranking**. Today, you only calculate the number for one document.\n\n## 1. Turn text into comparable words\n\nA **token** is one piece of text we compare. Here, tokens are runs of letters a–z or digits 0–9. **Tokenization** means splitting text into those pieces. The provided `terms()` helper lowercases the text, splits at punctuation and spaces, and removes duplicates.\n\nFor example, `terms(\"NOTICE notice!\")` produces `{\"notice\"}`. This is a Python **set**: a collection of unique values. Sets have no meaningful order. A **query term** is one of the tokens from the query.\n\nWe compare whole tokens: `notice` matches `NOTICE!` after tokenization, but does not match `notices` or `noticed`. This small practice rule does not understand meaning or synonyms.\n\n## 2. Give each matching term points\n\nFor each distinct query term, add **3 points if it appears in the title** and **1 point if it appears in the body**. Check both places: a term in both earns 4 points. A missing term adds 0.\n\nWe chose 3 and 1 to make a title match count more than a body match. These are fixed weights for this exercise, not a universal search formula. Repeating a word in the query, title or body adds no extra points. One matching query term is enough to earn points; the document does not need to contain them all.",
       "followups": [
         "Why is elif incorrect here?",
         "What work can move outside a loop over many documents?"
@@ -320,7 +320,29 @@
         "Real pytest"
       ],
       "starter": "\"\"\"Guided version of Round 2. Edit this file only to start.\n\nFollow README.md. Models, tokenization, examples, and tests are provided.\nThis preserves the V2 search contract; helpers are an added teaching scaffold.\nThese are toy search contracts for learning and experimentation.\n\"\"\"\nfrom collections.abc import Iterable\n\nfrom models import Document, SearchHit\nfrom text_tools import terms\n\n\ndef score_document(document: Document, query_terms: set[str]) -> int:\n    \"\"\"STAGE 1: score ONE document. Ignore all permissions/categories here.\n\n    For each distinct query term:\n    - +3 when present in the title;\n    - independently, +1 when present in the body (document.text).\n    - A word in BOTH contributes 4, not 3.\n    - Repetition in query/title/body never increases its contribution.\n    - Whole tokens only: 'notice' must not match 'notices'.\n    - Empty query_terms => 0.\n\n    Example:\n      query_terms = {'termination', 'notice'}\n      title = 'Termination clause'\n      text = 'Notice of termination.'\n      result = 5: termination 3+1, notice 0+1.\n\n    TODO 1: Convert title and text with the provided terms() function.\n    TODO 2: Accumulate the score. An explicit loop is fine.\n    TODO 3: Return an int. Do not modify the document or query_terms.\n\n    Test only this stage:\n      python -m pytest -q tests/test_stages.py -k stage1 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 1: implement score_document\")\n\n\ndef can_read(document: Document, *, tenant_id: str, user_id: str) -> bool:\n    \"\"\"STAGE 2: decide whether this user may read ONE document.\n\n    Tenant is the customer firm. Identity here is already trusted/authenticated.\n    - A different tenant is ALWAYS rejected, even when public=True and even\n      when user_id happens to appear in that other tenant's allowed_users.\n    - Within the right tenant, public=True makes the document readable.\n    - Otherwise user_id must appear in allowed_users.\n    - No allowed users + public=False => unreadable.\n\n    TODO: Express those gates with early returns or one parenthesized expression.\n    Do not consult relevance, categories, or document.version here.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage2 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 2: implement can_read\")\n\n\ndef matches_categories(\n    document: Document,\n    categories: frozenset[str] | None,\n) -> bool:\n    \"\"\"STAGE 3: check an optional category filter.\n\n    These are already assigned labels; you are not implementing a classifier.\n    - None means no filter, so every document matches this helper.\n    - An empty frozenset means match nothing, NOT 'no filter'.\n    - Otherwise, at least one document category must be in the requested set.\n    - Names are exact/case-sensitive. This is OR, not AND.\n\n    TODO: Treat None explicitly. Then determine whether any label is shared.\n    Return a bool, not a set.\n\n    Test:\n      python -m pytest -q tests/test_stages.py -k stage3 -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 3: implement matches_categories\")\n\n\ndef search_documents(\n    documents: Iterable[Document],\n    query: str,\n    *,\n    tenant_id: str,\n    user_id: str,\n    categories: frozenset[str] | None = None,\n    limit: int = 20,\n) -> list[SearchHit]:\n    \"\"\"STAGE 4: compose the helpers into the original Round 2 contract.\n\n    TODO A: Validate 1 <= limit <= 100. Raise ValueError otherwise. Do this\n      BEFORE early returns for an empty query/input/filter. limit is an int.\n    TODO B: Tokenize query ONCE. Empty/punctuation-only query => [].\n    TODO C: Visit each document once. Use your two filter helpers. For eligible\n      documents compute a score and keep positive-scoring SearchHit records.\n    TODO D: Sort hits by score descending, then document_id ascending.\n    TODO E: Apply limit LAST, and return a list.\n\n    Inputs already have unique (tenant_id, document_id) identities. No version\n    selection or deduplication is required. documents can be a generator:\n    do not require len(), indexing, or a second pass over it. Do not mutate it.\n\n    A high-scoring inaccessible document must not take a result slot away from\n    a lower-scoring accessible document. Do not sort/limit globally then filter.\n\n    Stage 4 smoke tests:\n      python -m pytest -q tests/test_stages.py -k stage4 -x\n    Original V2 acceptance tests:\n      python -m pytest -q tests/test_original_contract.py -x\n    \"\"\"\n    raise NotImplementedError(\"Stage 4: implement search_documents\")\n",
-      "expected_tests": 9
+      "expected_tests": 9,
+      "worked_example": {
+        "query": "termination notice",
+        "title": "Termination clause",
+        "body": "Notice of termination.",
+        "rows": [
+          {
+            "term": "termination",
+            "title": 3,
+            "body": 1
+          },
+          {
+            "term": "notice",
+            "title": 0,
+            "body": 1
+          }
+        ]
+      },
+      "after_example": "## 3. Translate the rule into Python\n\nYour function receives `document`, a `Document` record, and `query_terms`, an already-tokenized set such as `{\"termination\", \"notice\"}`. Read the title with `document.title` and the body with `document.text`. The other record fields are for later stages.\n\nUse the supplied `terms()` helper on each document field. You do not need to write a tokenizer. In Python, `in` checks whether a value belongs to a collection:\n\n```python\nwords = {\"invoice\", \"payment\"}\n\"invoice\" in words  # True: the complete token is present\n\"voice\" in words    # False: part of a token does not count\n```\n\nThe function signature `score_document(document: Document, query_terms: set[str]) -> int` names two inputs and an output. `set[str]` means a set of strings; `-> int` means return an integer, such as `5`, rather than printing it.\n\nStart a total at zero, check each query term against each field, and return the total. If there are no query terms or no matches, return `0`. Leave the document and query set unchanged so they can be reused.",
+      "practice_check": {
+        "question": "Keep the same document, but search for \"notice notice\". What score should it get?",
+        "answer": "1 point. The query becomes {\"notice\"}; repeating it adds nothing. The title has no notice token (0), and the body contains notice (1)."
+      }
     },
     {
       "id": "g-permissions",
