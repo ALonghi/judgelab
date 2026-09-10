@@ -17,7 +17,16 @@ def latest_documents(documents: Iterable[Document]) -> list[Document]:
 
     Do not collapse documents from different tenants with the same document_id.
     """
-    raise NotImplementedError("Round 1A: implement latest_documents")
+    # group by
+    grouped = {}
+    for doc in documents:
+        key = (doc.tenant_id, doc.document_id)
+        if key not in grouped or doc.version > grouped[key].version:
+            grouped[key] = doc
+        elif doc.version == grouped[key].version:
+            grouped[key] = doc  # last input wins
+
+    return sorted(grouped.values(), key=lambda d: (d.tenant_id, d.document_id))
 
 
 def category_counts(documents: Iterable[Document]) -> dict[str, int]:
