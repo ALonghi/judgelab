@@ -54,6 +54,10 @@ On subsequent visits, activate the same environment and run `python run.py`.
 Keep the terminal running while practising. **Ctrl+C stops the app**.
 Opening `web/index.html` directly will not execute Python; use the local server.
 
+For the explicitly private, password-protected Fly.io instance, see
+[hosting and persistence](docs/HOSTING.md). Local mode stays loopback-only;
+hosted mode is still for one trusted learner, not public code execution.
+
 ## What you can play
 
 | Mode | Activities | What is validated |

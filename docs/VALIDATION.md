@@ -1,5 +1,19 @@
 # Delivery validation
 
+## Private hosted deployment (2026-09-10)
+
+Local suite: 38 app tests pass, including fail-closed hosted configuration,
+authentication on pages/assets/data routes, malformed credentials, and retained
+Host/Origin/CSRF checks. Fly.io deployment uses one Machine in Frankfurt with an
+encrypted persistent volume. Anonymous HTTPS bootstrap returns 401; authenticated
+homepage, bootstrap and indexed-lesson requests return 200 with all 32 activities.
+
+On the deployed Python 3.13 image, the service user has UID 10001. The three
+indexed-search reference checkpoints pass their 9, 13 and 7 cases through the
+actual runner under that user. These probes did not import local learner progress
+or record practice attempts. Login credentials and the short-lived deployment
+token are excluded from Git and the image.
+
 ## Indexed-search extension (2026-09-10)
 
 Validated on local CPython 3.14.7. The 32-activity catalog now has 19 coding

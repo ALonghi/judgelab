@@ -5,7 +5,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 import argparse
+import base64
+import binascii
 import copy
+import hashlib
 import importlib.metadata
 import importlib.util
 import json
@@ -110,15 +113,31 @@ class Handler(BaseHTTPRequestHandler):
             print('Practice submission evaluated.')
 
     def allowed_hosts(self):
+        origin = getattr(self.server, 'public_origin', None)
+        if origin:
+            return {urlsplit(origin).netloc}
         return {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}
 
     def guard(self, write=False):
         if self.headers.get('Host','') not in self.allowed_hosts():
-            self.respond({'error':'Only local host access is permitted.'},403)
+            self.respond({'error':'Host is not permitted.'},403)
             return False
+        expected = getattr(self.server, 'auth_digest', None)
+        if expected is not None:
+            authorization = self.headers.get('Authorization', '')
+            try:
+                scheme, encoded = authorization.split(' ', 1)
+                credentials = base64.b64decode(encoded, validate=True) if scheme.lower() == 'basic' else b''
+            except (ValueError, binascii.Error):
+                credentials = b''
+            if not secrets.compare_digest(hashlib.sha256(credentials).digest(), expected):
+                self.respond({'error':'Sign in to this private practice instance.'},401)
+                return False
         if write:
             origin=self.headers.get('Origin')
-            if origin and origin not in {f'http://{host}' for host in self.allowed_hosts()}:
+            public_origin = getattr(self.server, 'public_origin', None)
+            allowed_origins = {public_origin} if public_origin else {f'http://{host}' for host in self.allowed_hosts()}
+            if origin and origin not in allowed_origins:
                 self.respond({'error':'Cross-origin requests are rejected.'},403)
                 return False
             if self.headers.get('X-Lab-Token') != self.server.token:
@@ -134,11 +153,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('X-Frame-Options','DENY')
         self.send_header('Referrer-Policy','no-referrer')
+        if getattr(self.server, 'public_origin', None):
+            self.send_header('Strict-Transport-Security','max-age=31536000')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'")
 
     def respond(self, value, status=200):
         data=json.dumps(value,ensure_ascii=False).encode('utf-8')
         self.send_response(status)
+        if status == 401:
+            self.send_header('WWW-Authenticate', 'Basic realm="JudgeLab", charset="UTF-8"')
         self.security_headers()
         self.send_header('Content-Type','application/json; charset=utf-8')
         self.send_header('Content-Length',str(len(data)))
@@ -150,10 +173,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self.guard():return
         path=unquote(urlsplit(self.path).path)
         if path=='/api/bootstrap':
+            hosted = bool(getattr(self.server, 'public_origin', None))
             return self.respond({'catalog':public_catalog(),'state':self.server.store.snapshot(),
                                  'token':self.server.token,'python':sys.version.split()[0],
                                  'pytest':importlib.metadata.version('pytest'),'runner':'Local CPython + pytest',
-                                 'execution_warning':'Your submitted Python runs with your user permissions. This is not a security sandbox. Run only your own trusted practice code; never expose this server to a network.'})
+                                 'hosted':hosted,
+                                 'execution_warning':('Your submitted Python runs on your private hosted instance and can access its practice data. Run only your own trusted code. Do not share this instance or its login.' if hosted else 'Your submitted Python runs with your user permissions. This is not a security sandbox. Run only your own trusted practice code; never expose the unauthenticated local server to a network.')})
         if path.startswith('/api/lesson/'):
             id=path.rsplit('/',1)[-1]
             if id not in LESSONS:return self.respond({'error':'Unknown lesson'},404)
@@ -301,23 +326,43 @@ def check_environment():
     return {'python':sys.version.split()[0], **{name:importlib.metadata.version(name) for name in ['pytest','pytest-asyncio','fastapi','httpx']}}
 
 
+def hosted_settings(environ):
+    """Fail closed before binding a network socket. HTTPS is terminated by Fly."""
+    origin = environ.get('JUDGELAB_PUBLIC_ORIGIN', '').rstrip('/')
+    parsed = urlsplit(origin)
+    password = environ.get('JUDGELAB_PASSWORD', '')
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username or
+            parsed.password or parsed.port or parsed.path or parsed.query or parsed.fragment):
+        raise ValueError('Hosted mode requires JUDGELAB_PUBLIC_ORIGIN=https://your-hostname')
+    if len(password) < 24:
+        raise ValueError('Hosted mode requires a JUDGELAB_PASSWORD of at least 24 characters')
+    return origin, hashlib.sha256(('learner:' + password).encode('utf-8')).digest()
+
+
 def main():
-    parser=argparse.ArgumentParser(description='JudgeLab: local, single-user coding practice. Never expose to a network.')
+    parser=argparse.ArgumentParser(description='JudgeLab: private, single-user coding practice.')
     parser.add_argument('--port',type=int,default=8765)
     parser.add_argument('--no-browser',action='store_true')
     parser.add_argument('--check',action='store_true')
     parser.add_argument('--state-dir',type=Path,default=ROOT/'.judgelab')
+    parser.add_argument('--hosted',action='store_true',help='Bind on all interfaces behind HTTPS; requires origin and password environment variables.')
     args=parser.parse_args()
     environment=check_environment()
     if args.check:
         print(json.dumps(environment,indent=2));return
     if not 1024<=args.port<=65535:raise SystemExit('Use a port between 1024 and 65535.')
-    try:server=LabHTTPServer(('127.0.0.1',args.port),Handler)
+    origin, auth_digest = None, None
+    if args.hosted:
+        try:origin, auth_digest = hosted_settings(os.environ)
+        except ValueError as error:raise SystemExit(str(error))
+    try:server=LabHTTPServer(('0.0.0.0' if args.hosted else '127.0.0.1',args.port),Handler)
     except OSError as error:raise SystemExit(f'Cannot start local server: {error}\nTry: python run.py --port 8766')
     server.store=Store(args.state_dir/'progress.json')
+    server.public_origin = origin
+    server.auth_digest = auth_digest
     server.token=secrets.token_urlsafe(32)
     server.run_lock=threading.Lock()
-    url=f'http://127.0.0.1:{server.server_port}'
+    url=origin or f'http://127.0.0.1:{server.server_port}'
     print(f'\n  JudgeLab is ready → {url}\n  Python {environment["python"]} · real pytest · no API keys\n  Progress: {server.store.path}\n\n  Only submit your own trusted code. This runner is NOT a security sandbox.\n  Ctrl+C stops the app.\n',flush=True)
     if not args.no_browser:threading.Timer(0.5,lambda:webbrowser.open(url)).start()
     try:server.serve_forever()

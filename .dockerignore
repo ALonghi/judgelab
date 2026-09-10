@@ -1,0 +1,13 @@
+*
+!requirements.txt
+!run.py
+!app/**
+!web/**
+!packs/**
+!references/**
+!deploy/entrypoint.sh
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.sqlite
+**/*.db

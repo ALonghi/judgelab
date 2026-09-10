@@ -1342,6 +1342,15 @@ JudgeLab is not intended to be:
 
 # Security warning for local code execution
 
+An explicitly requested private Fly.io deployment is now supported. The default
+mode stays loopback-only. Hosted mode requires an HTTPS origin and a strong
+password before binding externally; all content/API routes require authentication,
+with Host/Origin/CSRF checks retained. It is single-user trusted-code execution,
+not a public or multi-tenant sandbox. Deploy one unprivileged app process with a
+persistent volume; exclude local progress and secrets from the build context.
+See docs/HOSTING.md. The earlier prohibitions on public exposure still apply to
+unauthenticated deployment and untrusted code submission.
+
 Submitted Python code executes locally using the user's environment.
 
 The application is not a hardened sandbox.
