@@ -676,14 +676,13 @@ Each guided exercise should therefore ideally contain:
 
 The difficulty should increase progressively.
 
-Every activity, including quick quizzes and architecture discussions, must introduce
-its use case and define domain terms before asking the learner to use them. Do not
-assume the learner completed another chapter first. Keep a concise scenario,
-visible vocabulary, the applicable rule and a separate example in the lesson's
-`brief` field. Render this before quiz questions and on the introduction step for
-coding/discussion activities. Essential context must not be hidden in hints or
-post-answer feedback. Keep examples distinct from quiz answers, and use readable
-sections rather than a long glossary paragraph.
+Every activity starts with a concise, self-contained problem and its agreed
+requirements (`scenario`). Use ordinary language; do not frame definitions or
+general design alternatives as things the interviewer said. Keep definitions,
+Python notes, alternative designs and related lessons in the separate Knowledge
+base view. Keep concrete examples and implementation guidance in Walkthrough.
+The learner can move directly to Practice or consult either learning view first.
+Preserve detailed teaching without forcing it into one long page before the task.
 
 Teach transfer beyond the exercise throughout the learning path. Each activity's
 `strategy` field must name and explain the engineering approach, give a realistic
@@ -696,14 +695,13 @@ optimal selection, and local version counters from source revisions). Use
 progressive disclosure for deeper reasoning while keeping the strategy and
 problem it addresses visible before the exercise.
 
-The teaching order is problem first across all activities: describe the actual
-situation, clarify constraints and terminology, work through concrete inputs and
-decisions, then name the resulting approach and discuss its limits. Only then
-introduce the practice contract. Never open with a strategy name or definition
-before establishing the problem it solves. The `problem` field carries this
-scenario and concrete reasoning steps. Use practical values, records, requests
-and failure cases rather than abstract advice. Keep the main reasoning visible;
-do not hide it in disclosures or repeat the setup in multiple introductions.
+The learning sequence is Problem → Walkthrough → Practice, with Knowledge base
+available separately throughout. Problem contains the situation, constraints and
+expected outcome, not a glossary or solution. Walkthrough develops an approach
+using concrete inputs and decisions, then explains implementation and trade-offs.
+Use practical values, records, requests and failure cases. Avoid repeated setup,
+generic numbered chapter headings and instructional filler. The `problem` field
+continues to hold worked reasoning; `scenario` is the concise interview-facing brief.
 
 An approach description must explain execution, not just name a pattern. Each
 activity's `implementation` field states the data/state to retain, ordered

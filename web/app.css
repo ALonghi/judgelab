@@ -41,12 +41,6 @@
 :focus-visible{outline:3px solid oklch(48% .12 150);outline-offset:4px}
 @media(max-width:1150px){.brief-grid{grid-template-columns:minmax(0,1fr)}.brief-grid>.card:first-child{padding:28px}.CodeMirror{font-size:15px}}
 @media(max-width:700px){.brief-grid>.card:first-child{padding:22px}.markdown{font-size:16px}.markdown h2{font-size:23px}.lesson-heading h1{font-size:29px}.lesson-heading p{font-size:16px}.phase-tab{font-size:13px;padding:10px 8px}.scoring-example{padding:14px;margin-inline:-8px}.score-table{font-size:13px}.score-table th,.score-table td{padding:10px 5px}.score-table thead th{font-size:12px}}
-.lesson-overview{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:22px 16px;margin-bottom:28px;background:oklch(94% .035 145);border-radius:10px;color:oklch(30% .04 150)}
-.lesson-overview>div{display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;flex:1}
-.lesson-overview strong{font-size:15px;line-height:1.4}
-.lesson-overview div span{font-size:12px;line-height:1.4}
-.lesson-overview .icon{width:27px;height:27px;margin-bottom:5px}
-@media(max-width:700px){.lesson-overview{gap:5px;padding:16px 8px;margin-inline:-8px}.lesson-overview strong{font-size:13px}.lesson-overview div span{font-size:11px}}
 .score-table tbody th,.score-table thead th:last-child{white-space:nowrap;overflow-wrap:normal}
 
 /* Navigation retains native browser link behavior and existing component styles. */
@@ -54,91 +48,69 @@ a[data-action]{text-decoration:none;cursor:pointer}
 a.brand,a.track-card,a.lesson-row{color:inherit}
 a.inline-link{text-decoration:underline}
 
-/* Lesson context: a reading surface with a compact, visible vocabulary rail. */
-.lesson-narrative{max-width:760px;margin:0 auto 32px;color:var(--ink)}
-.learning-step{padding:28px 0;border-top:1px solid var(--line)}
-.learning-step h2{font-size:25px;line-height:1.3;letter-spacing:-.4px;margin:10px 0 18px}
-.learning-step p,.learning-step li{font-size:16px;line-height:1.75;max-width:72ch;margin:0}
-.learning-step h3{font-size:14px;line-height:1.5;margin:0 0 14px}
-.interview-framing{margin-top:18px}
-.interview-framing summary{cursor:pointer;font-size:14px;line-height:1.5;color:var(--green);padding:6px 0;font-weight:650}
-.interview-framing blockquote{margin:14px 0 8px;font-size:17px;line-height:1.7}
-.interview-framing small{color:var(--muted);font-size:12px}
-.learning-vocabulary{padding:22px 24px;background:oklch(94% .018 145);border-radius:10px;margin-top:24px}
-.learning-vocabulary dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 28px;margin:0}
-.learning-vocabulary dt{font-size:14px;font-weight:650;line-height:1.5}
-.learning-vocabulary dd{font-size:14px;line-height:1.65;margin:5px 0 0;color:oklch(35% .025 150)}
+/* Lesson views: task first, optional walkthrough, separate reference material. */
+.activity-nav{display:flex;gap:4px;align-items:center;overflow-x:auto;position:sticky;top:0;z-index:12;padding:8px 0;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:32px}
+.activity-nav .phase-tab{display:flex;align-items:center;gap:7px;flex-shrink:0;font-size:14px;white-space:nowrap;padding:12px 16px;border-radius:8px}
+.activity-nav .knowledge-tab{margin-left:auto}
+.activity-nav .phase-tab.active{background:oklch(91% .025 145);color:var(--green)}
+.activity-nav .icon{width:16px;height:16px}
+.scenario-panel{display:grid;grid-template-columns:minmax(0,1fr) 235px;gap:40px;align-items:start}
+.scenario-main{min-width:0;padding:8px 0}
+.scenario-opening{font-size:22px;line-height:1.6;letter-spacing:-.25px;max-width:55ch;margin:0 0 32px}
+.scenario-main h2,.scenario-sidebar h2{font-size:14px;font-weight:700;line-height:1.5;margin:0 0 14px}
+.scenario-requirements{margin:0;padding-left:20px;max-width:65ch}
+.scenario-requirements li{font-size:16px;line-height:1.7;padding-left:4px}
+.scenario-requirements li+li{margin-top:12px}
+.scenario-sidebar{border-left:1px solid var(--line);padding:12px 0 12px 24px}
+.scenario-sidebar p{font-size:15px;line-height:1.65;margin:0}
+.preparation-links{margin-top:28px}
+.preparation-links a{display:flex;align-items:start;justify-content:space-between;gap:10px;font-size:14px;line-height:1.6;color:var(--green);margin-top:12px}
+.preparation-links .icon{flex-shrink:0;width:14px;height:14px;margin-top:4px}
+.knowledge-shortcut{display:flex;gap:8px;align-items:start;text-align:left;background:transparent;color:var(--green);font-size:14px;line-height:1.6;padding:0;margin-top:28px}
+.knowledge-shortcut .icon{flex-shrink:0;width:17px;height:17px;margin-top:3px}
+.scenario-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:36px}
+.scenario-panel>.scenario-actions{grid-column:1/-1;margin-top:0}
+.lesson-walkthrough,.lesson-knowledge{max-width:800px;margin:0 auto}
+.lesson-walkthrough h2,.knowledge-heading h2{font-size:24px;line-height:1.3;letter-spacing:-.4px;margin:0 0 22px}
+.lesson-walkthrough p,.lesson-walkthrough li,.lesson-knowledge p,.lesson-knowledge li{font-size:16px;line-height:1.75;max-width:72ch}
+.walk-implementation{margin:36px 0 28px;padding-top:28px;border-top:1px solid var(--line)}
 .learning-reasoning{padding-left:24px;margin:0}
-.learning-reasoning li{padding-left:8px}
-.learning-reasoning li+li{margin-top:20px}
+.learning-reasoning li{padding-left:7px}
+.learning-reasoning li+li{margin-top:18px}
 .learning-reasoning li::marker{font-weight:700;color:var(--green)}
-.learning-step .strategy-depth{margin-top:22px}
-.learning-practice{padding-bottom:0}
-.learning-practice .practice-scope{font-size:14px;margin-top:16px;color:oklch(38% .025 150)}
-.python-notes summary{cursor:pointer;color:var(--green);font-size:16px;font-weight:650;line-height:1.6;padding:8px 0}
-.decision-question{margin:22px 0 28px}
-.decision-question h3{font-size:17px;line-height:1.5}
-.decision-question .decision-context{margin-bottom:20px;font-size:16px;line-height:1.75}
-.decision-question dl{margin:0}
-.decision-question dl>div{padding:15px 0;border-bottom:1px solid var(--line)}
-.decision-question dt{font-size:15px;font-weight:700;line-height:1.6}
-.decision-question dd{margin:6px 0 0;font-size:16px;line-height:1.7}
-.implementation-guide h3{font-size:16px;margin:24px 0 12px}
+.implementation-guide h3{font-size:15px;margin:24px 0 12px}
+.knowledge-heading p{color:var(--muted);margin:-10px 0 28px}
+.lesson-knowledge h3{font-size:17px;line-height:1.5;margin:28px 0 14px}
+.knowledge-terms dl{margin:0}
+.knowledge-terms dl>div{display:grid;grid-template-columns:180px minmax(0,1fr);gap:24px;padding:16px 0;border-bottom:1px solid var(--line)}
+.knowledge-terms dt,.knowledge-section dt{font-size:15px;font-weight:650;line-height:1.65}
+.knowledge-terms dd,.knowledge-section dd{font-size:15px;line-height:1.7;margin:0}
+.knowledge-section{padding:0;border-bottom:1px solid var(--line)}
+.knowledge-section summary{cursor:pointer;color:var(--green);font-size:16px;font-weight:650;line-height:1.6;padding:18px 0}
+.knowledge-section summary:hover{text-decoration:underline;text-underline-offset:4px}
+.knowledge-section>p{margin:0 0 18px}
+.knowledge-section dl{margin:0 0 20px}
+.knowledge-section dl>div+div{margin-top:18px}
+.knowledge-section dd{margin-top:5px}
+.knowledge-section .markdown{padding-bottom:20px;font-size:16px}
+.reference-list{padding-left:22px;margin:0 0 22px}
+.reference-list li+li{margin-top:14px}
+.knowledge-related{margin:30px 0}
+.knowledge-related a{display:block;color:var(--green);font-size:15px;font-weight:600;text-decoration:underline;text-underline-offset:3px;line-height:1.6;margin:12px 0 4px}
+.knowledge-related p{font-size:14px;color:var(--muted);margin:0 0 18px}
 .teaching-code{padding:20px;background:oklch(22% .025 150);color:oklch(95% .012 145);border-radius:10px;overflow-x:auto;max-width:100%;font-size:14px;line-height:1.7;tab-size:4}
 .teaching-code code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 .teaching-trace{overflow-x:auto;margin:24px 0}
 .teaching-trace table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
 .teaching-trace caption{text-align:left;font-weight:650;margin-bottom:12px}
 .teaching-trace th,.teaching-trace td{padding:10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-.learning-connections{margin:24px 0;padding:20px;background:oklch(94% .018 145);border-radius:10px}
-.learning-connections ul{padding-left:20px;margin:0}
-.learning-connections li+li{margin-top:18px}
-.learning-connections a{color:var(--green);font-size:15px;font-weight:650;text-underline-offset:3px}
-.learning-connections p{font-size:14px;margin-top:5px}
-@media(max-width:700px){.teaching-code{font-size:13px;padding:14px}.decision-question dd{font-size:15px}}
-@media(max-width:700px){.learning-step{padding:24px 0}.learning-step h2{font-size:23px}.learning-vocabulary{padding:20px}.learning-vocabulary dl{grid-template-columns:minmax(0,1fr);gap:18px}}
-.strategy-lesson{margin:0 0 32px;color:var(--ink)}
-.strategy-heading{max-width:72ch;margin:0 0 28px}
-.strategy-heading h2{font-size:28px;line-height:1.25;letter-spacing:-.6px;margin:10px 0 14px}
-.strategy-lesson p,.strategy-lesson li{font-size:16px;line-height:1.7;margin:0;max-width:72ch}
-.strategy-context{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;margin-bottom:24px}
-.strategy-lesson h3{font-size:14px;line-height:1.5;margin:0 0 10px;font-weight:700}
-.strategy-interview{padding:22px 24px;background:oklch(94% .018 145);border-radius:12px}
-.strategy-interview blockquote{margin:0;font-size:18px;line-height:1.6;font-weight:550}
-.strategy-note{display:block;font-size:12px;line-height:1.5;margin-top:14px;color:oklch(38% .025 150)}
-.strategy-depth{border-top:1px solid var(--line)}
-.strategy-depth summary{padding:17px 4px;cursor:pointer;font-size:16px;font-weight:650;line-height:1.5;color:var(--green)}
-.strategy-depth summary:hover{color:var(--ink)}
-.strategy-detail-body{padding:0 4px 24px;max-width:76ch}
-.strategy-detail-body h3:not(:first-child){margin-top:22px}
-.strategy-detail-body ul{margin:0;padding-left:22px}
-.strategy-detail-body li+li{margin-top:14px}
-.strategy-references{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:22px;font-size:13px;line-height:1.6}
-.strategy-references span{color:var(--muted)}
-.strategy-references a{color:var(--green);text-underline-offset:3px}
-.strategy-lesson .strategy-transfer{font-size:14px;color:oklch(38% .025 150);margin-top:18px}
-@media(max-width:700px){.strategy-heading h2{font-size:25px}.strategy-context{grid-template-columns:minmax(0,1fr);gap:22px}.strategy-interview{padding:20px}.strategy-interview blockquote{font-size:17px}.strategy-depth summary{font-size:15px}}
-.lesson-brief{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);gap:36px;margin:0 0 32px;padding:30px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--ink)}
-.brief-label{font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--green)}
-.brief-story h2{font-size:25px;line-height:1.25;letter-spacing:-.5px;margin:10px 0 16px;max-width:30ch}
-.brief-story p{font-size:16px;line-height:1.65;max-width:65ch;margin:0}
-.brief-rule{margin-top:22px}
-.brief-rule h3,.brief-vocabulary h3{font-size:14px;font-weight:700;line-height:1.4;margin:0 0 8px}
-.brief-story .brief-example{margin-top:20px;font-size:14px;color:oklch(38% .025 150)}
-.brief-example strong{display:block;margin-bottom:4px;font-size:12px}
-.brief-vocabulary{background:oklch(94% .018 145);padding:22px 24px;border-radius:12px;align-self:start}
-.brief-vocabulary dl{margin:0}
-.brief-vocabulary dl>div{padding:13px 0;border-bottom:1px solid oklch(85% .018 145)}
-.brief-vocabulary dl>div:last-child{padding-bottom:0;border-bottom:0}
-.brief-vocabulary dt{font-size:14px;font-weight:650;line-height:1.5}
-.brief-vocabulary dd{font-size:14px;line-height:1.6;margin:4px 0 0;color:oklch(35% .025 150)}
-.quiz-lesson{max-width:1060px;margin:0 auto}
+.quiz-lesson{max-width:800px;margin:0 auto}
 .quiz-lesson .quiz-stage{max-width:none;margin:0}
-.quiz-lesson .quiz-card{padding:30px 34px;border-radius:16px}
-.quiz-lesson .quiz-card h2{font-size:24px;line-height:1.4;letter-spacing:-.4px;max-width:58ch;margin:14px 0 24px}
+.quiz-lesson .quiz-card{padding:28px 32px;border-radius:14px}
+.quiz-lesson .quiz-card h2{font-size:24px;line-height:1.45;letter-spacing:-.4px;max-width:58ch;margin:14px 0 24px}
 .quiz-lesson .question-type{font-size:11px;letter-spacing:.1em}
 .quiz-lesson .quiz-option{font-size:16px;line-height:1.5;padding:14px 18px;min-height:54px}
 .quiz-lesson .quiz-bottom{gap:16px;flex-wrap:wrap}
 .quiz-lesson .quiz-bottom .subtle{font-size:12px}
-@media(max-width:1000px){.lesson-brief{gap:24px;grid-template-columns:minmax(0,1fr) minmax(220px,.85fr)}.brief-vocabulary{padding:18px}.brief-story h2{font-size:23px}}
-@media(max-width:700px){.lesson-brief{grid-template-columns:minmax(0,1fr);gap:24px;padding:24px 0}.brief-story h2{max-width:none}.brief-vocabulary{padding:20px}.quiz-lesson .quiz-card{padding:22px 20px}.quiz-lesson .quiz-card h2{font-size:21px}.quiz-lesson .quiz-option{font-size:15px;padding:12px}.quiz-lesson .quiz-bottom .btn{width:100%}}
+@media(max-width:1050px){.scenario-panel{grid-template-columns:minmax(0,1fr);gap:28px}.scenario-sidebar{border-left:0;border-top:1px solid var(--line);padding:22px 0}.scenario-actions{margin-top:26px}}
+@media(max-width:700px){.activity-nav{margin-bottom:24px;gap:0;flex-wrap:wrap;overflow:visible}.activity-nav .phase-tab{font-size:13px;padding:10px}.activity-nav .knowledge-tab{margin-left:auto}.scenario-opening{font-size:20px;margin-bottom:24px}.scenario-actions .btn{width:100%;text-align:center;justify-content:center}.knowledge-terms dl>div{grid-template-columns:minmax(0,1fr);gap:5px}.teaching-code{font-size:13px;padding:14px}.quiz-lesson .quiz-card{padding:22px 20px}.quiz-lesson .quiz-card h2{font-size:21px}.quiz-lesson .quiz-option{font-size:15px;padding:12px}.quiz-lesson .quiz-bottom .btn{width:100%}}

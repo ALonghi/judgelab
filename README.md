@@ -261,6 +261,12 @@ use this top-level README for the UI setup.
 python -m pytest -q tests_app
 ```
 
+Frontend view regression checks (Node.js, no npm dependencies):
+
+```bash
+node --test tests_ui/lesson_views.test.cjs
+```
+
 These tests are for the app, not your exercise solutions. They cover real pytest
 pass/fail, syntax errors, timeout handling, skipped-suite rejection, HTTP checks,
 state persistence and transparent architecture feedback.

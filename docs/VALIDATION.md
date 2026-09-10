@@ -1,5 +1,16 @@
 # Delivery validation
 
+## Lesson-view clarity pass (2026-09-10)
+
+38 Python app tests and 5 Node view tests pass. All 32 activities have concise
+scenario briefs. Browser checks covered Problem, Walkthrough, Practice and
+Knowledge base at desktop and phone widths (128 views at each width), with no
+horizontal page overflow. Interaction checks verified draft preservation across
+view changes, persistent quiz selection, quiz shortcuts restricted to Practice,
+arrow-key tab navigation and a real quick-check submission in an isolated local
+test state directory. Walkthrough examples, code, traces and reference material
+remain reachable without appearing in the interview-facing brief.
+
 ## Private hosted deployment (2026-09-10)
 
 Local suite: 38 app tests pass, including fail-closed hosted configuration,

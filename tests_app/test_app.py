@@ -30,6 +30,8 @@ def test_all_code_assets_exist_and_have_test_counts():
 
 def test_every_activity_exposes_context_before_an_attempt():
     for lesson in public_catalog()['lessons']:
+        assert lesson['scenario']['prompt'] and lesson['scenario']['deliverable']
+        assert len(lesson['scenario']['requirements']) >= 2
         brief = lesson['brief']
         for field in ('heading', 'scenario', 'rule', 'example'):
             assert brief[field].strip(), (lesson['id'], field)

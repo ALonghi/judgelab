@@ -24,9 +24,12 @@ not close that implementation gap.
 | p-fastapi, p-ingest | HTTP adapter and local-change ingestion variant | V1 substring matching/local versions intentionally differ from V2 |
 | s-search, s-ingestion, s-chat, s-latency, s-api | Discuss scale, recoverability, evidence, deadlines and boundaries | Design arguments build on executable mechanisms, not a claim of production completeness |
 
-All activities retain problem → terminology/choices → concrete case → operations
-→ practice. New indexed lessons explain the SQL operations, table keys, scoring
-arithmetic, transaction owner, data movement and output before asking for code.
+All activities use distinct Problem, Walkthrough, Practice and Knowledge base
+views. Problem contains the interview-facing scenario, fixed requirements and
+deliverable. Walkthrough retains concrete examples and operations. Definitions,
+SQL/Python notes, design alternatives and related lessons belong in Knowledge base,
+not in the interview dialogue. New indexed lessons explain the SQL operations,
+table keys, scoring arithmetic, transaction owner, data movement and output.
 Their tests are independent, so an unfinished earlier checkpoint does not cause
 unrelated import failures. A separate integration check combines the reference
 checkpoints with the existing context builder and checks source IDs and access.
