@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 from app.engine import (ROOT, LESSONS, CATALOG, run_code, reference_text,
-                        interview_feedback, fingerprint)
+                        discussion_feedback, fingerprint)
 from app.server import Store, LabHTTPServer, Handler, public_catalog
 
 
 def test_catalog_has_expected_modes_and_unique_ids():
-    assert len(LESSONS)==41
-    assert len({x['id'] for x in CATALOG['lessons']})==41
-    assert sum(x['kind']=='code' for x in LESSONS.values())==16
+    assert len(LESSONS)==32
+    assert len({x['id'] for x in CATALOG['lessons']})==32
+    assert sum(x['kind']=='code' for x in LESSONS.values())==19
     assert sum(x['kind']=='quiz' for x in LESSONS.values())==8
-    assert sum(x['kind']=='interview' for x in LESSONS.values())==17
+    assert sum(x['kind']=='discussion' for x in LESSONS.values())==5
 
 
 def test_all_code_assets_exist_and_have_test_counts():
@@ -26,6 +26,58 @@ def test_all_code_assets_exist_and_have_test_counts():
         assert (ROOT/'references'/lesson['pack']/lesson['file']).exists()
         assert lesson['expected_tests']>0
         for test in lesson['tests']:assert (ROOT/'packs'/lesson['pack']/test).exists()
+
+
+def test_every_activity_exposes_context_before_an_attempt():
+    for lesson in public_catalog()['lessons']:
+        brief = lesson['brief']
+        for field in ('heading', 'scenario', 'rule', 'example'):
+            assert brief[field].strip(), (lesson['id'], field)
+        assert brief['vocabulary'], lesson['id']
+        assert all(item['term'] and item['meaning'] for item in brief['vocabulary'])
+        strategy = lesson['strategy']
+        for field in ('name', 'mechanism', 'use_case', 'prompt', 'recognize', 'proposal'):
+            assert strategy[field].strip(), (lesson['id'], field)
+        assert len(strategy['caveats']) >= 2, lesson['id']
+        assert all(strategy['caveats'])
+        for reference in strategy['references']:
+            assert reference['title'] and reference['url'].startswith('https://')
+        assert 'correct' not in lesson
+        assert 'explanation' not in lesson
+        problem = lesson['problem']
+        assert problem['title'] and problem['problem']
+        assert len(problem['reasoning']) >= 2
+        assert all(problem['reasoning'])
+        implementation = lesson['implementation']
+        assert implementation['state'] and implementation['result']
+        assert len(implementation['steps']) >= 3
+        assert implementation['decisions']
+        for decision in implementation['decisions']:
+            assert decision['question']
+            assert decision['lead_in'].strip(), lesson['id']
+            assert len(decision['branches']) >= 2
+            assert all(branch['answer'] and branch['action'] for branch in decision['branches'])
+        for link in implementation.get('connections', []):
+            assert link['id'] in LESSONS and link['text']
+
+
+def test_budget_teaching_examples_match_their_trace():
+    guide = LESSONS['q-context']['implementation']
+    ranking = {}
+    exec(guide['ranking_code'], ranking)
+    assert ranking['ranked'] == [('A', 2), ('B', 1), ('C', 1)]
+    selection = {}
+    exec(guide['code'], selection)
+    assert selection['selected'] == ['A', 'C']
+    assert selection['remaining'] == 30
+    remaining = 800
+    for (chunk_id, cost), row in zip(selection['chunks'], guide['trace']['rows'], strict=True):
+        assert row[:3] == [chunk_id, str(cost), str(remaining)]
+        fits = cost <= remaining
+        if fits:
+            remaining -= cost
+        assert row[3].startswith('Keep' if fits else 'Skip')
+        assert int(row[4]) == remaining
 
 
 def test_quiz_keys_are_not_in_bootstrap():
@@ -78,13 +130,13 @@ def test_timeout_is_not_a_pass():
     assert result['elapsed']<8
 
 
-def test_interview_cues_are_not_a_semantic_score():
-    result=interview_feedback(LESSONS['i-performance'], 'I measured the database. The performance improved after the change. ' * 4)
+def test_discussion_cues_are_not_a_semantic_score():
+    result=discussion_feedback(LESSONS['s-search'], 'I measured the database. The performance improved after the change. ' * 4)
     assert result['can_review']
     assert 'score' not in result
     assert result['submitted_text']
     assert 'not semantic grading' in result['note']
-    assert not interview_feedback(LESSONS['i-performance'],'Nice job')['can_review']
+    assert not discussion_feedback(LESSONS['s-search'],'Nice job')['can_review']
 
 
 def test_progress_persists_and_xp_is_not_farmed(tmp_path):
@@ -167,3 +219,20 @@ def test_save_and_export_are_real_server_state(http_app):
     assert request(base,'/api/save',{'id':'g-score','text':'# my draft'},headers)[0]==200
     status,body,_=request(base,'/api/export')
     assert json.loads(body)['drafts']['guided/exercise.py']['text']=='# my draft'
+
+
+def test_studio_removed_but_architecture_review_still_works(http_app):
+    base, _ = http_app
+    headers = {'X-Lab-Token': 'test-token'}
+    assert {t['id'] for t in CATALOG['tracks']} == {
+        'basics', 'guided', 'core', 'async', 'api', 'architecture'}
+    assert not any(l['id'].startswith('i-') for l in LESSONS.values())
+    assert request(base, '/api/lesson/i-intro')[0] == 404
+    answer = 'Measure query latency and volume, index eligible documents, and enforce tenant permissions before ranking. Track cache invalidation after access changes and benchmark the trade-offs under representative load.'
+    status, body, _ = request(base, '/api/discussion',
+                              {'id': 's-search', 'text': answer}, headers)
+    assert status == 200
+    assert json.loads(body)['result']['can_review']
+    status, _, _ = request(base, '/api/review',
+                           {'id': 's-search', 'checks': ['yes'] * 4}, headers)
+    assert status == 200

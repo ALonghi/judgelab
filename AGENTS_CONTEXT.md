@@ -418,6 +418,22 @@ and for practising set intersections.
 
 # 5. Context construction / RAG preparation
 
+The core chapter now teaches a disk-backed retrieval bridge before context:
+`c-index-build` writes per-term postings to SQLite while consuming units once;
+`c-index-query` scores with stored weights and applies the result limit in SQL;
+`c-chunking` yields identified chunks that the same index/query can retrieve.
+The context quiz follows those checkpoints, then `c-context` consumes their
+ranked text. The source revision quiz sits before event ingestion; cancellation
+follows basic async fetching. Preserve activity IDs when changing their order so
+saved work and progress remain associated with the original activities.
+
+The indexed pack uses local SQLite files and synthetic data, without an external
+service. Distinguish source buffering, result buffering and query scan cost.
+Never equate a generator with indexed retrieval, an in-memory postings dictionary
+with bounded memory, or a SQL LIMIT with bounded total database work. These
+exercises retain the toy title/body score, not BM25. Document construction still
+holds one source body; huge individual files need a separate streaming extractor.
+
 The project should teach the application logic around retrieval-augmented generation without requiring actual LLM API calls.
 
 Example problem:
@@ -660,6 +676,50 @@ Each guided exercise should therefore ideally contain:
 
 The difficulty should increase progressively.
 
+Every activity, including quick quizzes and architecture discussions, must introduce
+its use case and define domain terms before asking the learner to use them. Do not
+assume the learner completed another chapter first. Keep a concise scenario,
+visible vocabulary, the applicable rule and a separate example in the lesson's
+`brief` field. Render this before quiz questions and on the introduction step for
+coding/discussion activities. Essential context must not be hidden in hints or
+post-answer feedback. Keep examples distinct from quiz answers, and use readable
+sections rather than a long glossary paragraph.
+
+Teach transfer beyond the exercise throughout the learning path. Each activity's
+`strategy` field must name and explain the engineering approach, give a realistic
+use case, and connect an illustrative interview problem to the constraints that
+would make the approach appropriate. Include how to propose it, limitations and
+alternatives. These are practice scenarios, never claims about actual interview
+questions. Distinguish simplified exercise contracts from production decisions
+(for example, word budgets from model token budgets, greedy heuristics from
+optimal selection, and local version counters from source revisions). Use
+progressive disclosure for deeper reasoning while keeping the strategy and
+problem it addresses visible before the exercise.
+
+The teaching order is problem first across all activities: describe the actual
+situation, clarify constraints and terminology, work through concrete inputs and
+decisions, then name the resulting approach and discuss its limits. Only then
+introduce the practice contract. Never open with a strategy name or definition
+before establishing the problem it solves. The `problem` field carries this
+scenario and concrete reasoning steps. Use practical values, records, requests
+and failure cases rather than abstract advice. Keep the main reasoning visible;
+do not hide it in disclosures or repeat the setup in multiple introductions.
+
+An approach description must explain execution, not just name a pattern. Each
+activity's `implementation` field states the data/state to retain, ordered
+operations, and a verifiable outcome. Every displayed clarification question
+must explain how plausible answers change the design. Distinguish prerequisites
+from supplied assumptions and link related lessons with a precise account of
+what they teach and what they do not. Use small executable teaching examples and
+state traces where useful; keep learner files and gated reference solutions
+separate. Do not imply later exercises cover missing material without checking.
+
+Read the rendered lesson in sequence when reviewing teaching copy. Before each
+design question or alternative, explain the concrete situation and introduce the
+terms it refers to in connected prose (`decisions[].lead_in`). A glossary entry
+alone is not a narrative introduction. Do not make readers infer an unstated
+pipeline stage or present an already-fixed exercise assumption as an open question.
+
 Example:
 
 ```text
@@ -797,53 +857,15 @@ permissions -> rank -> limit
 
 ---
 
-# Interview coaching mode
+# Architecture discussion mode
 
-JudgeLab also contains non-coding interview activities.
+The five architecture activities extend the coding exercises with design questions.
+They use written answers, keyword cues, self-review rubrics and follow-up prompts.
+These checks do not evaluate semantic correctness.
 
-These should help the learner practise explaining:
-
-* a technical project,
-* a difficult problem,
-* system architecture,
-* performance optimization,
-* production incidents,
-* reliability,
-* debugging,
-* technical ownership,
-* trade-offs,
-* AI/LLM systems,
-* product-oriented engineering.
-
-The app should not pretend it can semantically verify the truth of personal experience.
-
-Interview feedback may instead use:
-
-* structure cues,
-* length checks,
-* topic coverage,
-* self-assessment rubrics,
-* follow-up prompts.
-
-Example rubric:
-
-```text
-Did I clearly explain:
-[ ] context
-[ ] my responsibility
-[ ] technical decision
-[ ] trade-off
-[ ] result
-[ ] what I learned
-```
-
-Avoid fake AI scoring such as:
-
-```text
-Your answer is 92% correct.
-```
-
-unless a real semantic evaluator is intentionally added later.
+Interview Studio and the personal-experience chapter have been removed. Keep the
+coding chapters and architecture chapter under Your Chapters. New discussion
+activities should focus on systems, constraints, trade-offs and failure handling.
 
 ---
 
@@ -878,7 +900,7 @@ Existing concepts include:
 * test result panel,
 * hints,
 * reference approach,
-* interview rehearsal,
+* architecture discussion,
 * practice timers.
 
 Do not turn the application into a giant dashboard full of metrics.

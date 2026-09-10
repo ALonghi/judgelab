@@ -17,7 +17,7 @@ import threading
 import webbrowser
 
 from .engine import (ROOT, CATALOG, LESSONS, MAX_CODE, fingerprint, run_code,
-                     reference_text, interview_feedback)
+                     reference_text, discussion_feedback)
 
 
 def now():
@@ -83,6 +83,8 @@ def lesson_payload(lesson, store):
                    'ARCHITECTURE_FOLLOWUPS.md','HINTS.md']
             number=lesson['file'].split('round')[1][:2]
             names += [str(path.relative_to(directory)) for path in (directory/'prompts').glob(number+'*.md')]
+        elif lesson['pack']=='indexed':
+            names=['README.md','models.py','storage.py','text_tools.py','demo.py']
         else:
             names=['README.md']
         for name in names:
@@ -251,20 +253,20 @@ class Handler(BaseHTTPRequestHandler):
                 with store.lock:
                     store.record(lesson,success,'quiz');store.state['results'][id]=result;store.persist()
                 return self.respond({'result':result,'state':store.snapshot()})
-            if path=='/api/interview':
-                if lesson['kind']!='interview':raise ValueError('This is not an interview prompt')
+            if path=='/api/discussion':
+                if lesson['kind']!='discussion':raise ValueError('This is not a discussion prompt')
                 text=body.get('text','')
-                result=interview_feedback(lesson,text)
+                result=discussion_feedback(lesson,text)
                 with store.lock:
                     store.state['answers'][id]=text;store.record(lesson,False,'structure cues')
                     store.state['results'][id]=result;store.persist()
                 return self.respond({'result':result,'state':store.snapshot()})
             if path=='/api/review':
-                if lesson['kind']!='interview':raise ValueError('Only interview prompts use a self-review rubric')
+                if lesson['kind']!='discussion':raise ValueError('Only discussion prompts use a self-review rubric')
                 checks=body.get('checks',[])
                 if not isinstance(checks,list) or len(checks)!=len(lesson['criteria']) or any(x not in ('yes','revise') for x in checks):
                     raise ValueError('Review every rubric point as met or needs work.')
-                if not interview_feedback(lesson,store.state['answers'].get(id,''))['can_review']:
+                if not discussion_feedback(lesson,store.state['answers'].get(id,''))['can_review']:
                     raise ValueError('Write at least 25 words before marking a rehearsal reviewed.')
                 with store.lock:
                     store.state['reviews'][id]={'checks':checks,'at':now()}

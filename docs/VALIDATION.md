@@ -1,5 +1,25 @@
 # Delivery validation
 
+## Indexed-search extension (2026-09-10)
+
+Validated on local CPython 3.14.7. The 32-activity catalog now has 19 coding
+missions. All 19 full reference files pass their selected suites through the
+application runner: 207 case executions, including overlapping guided tests.
+Guided reveal snippets are intentionally not standalone modules; those checkpoints
+were validated using the full shared reference file.
+
+`python -m pytest -q tests_app`: 26 passed. Added coverage checks all three indexed
+references and their deliberately failing starters, supporting schema visibility,
+lesson ordering and a disk-index → ranked chunks → existing context-builder
+integration, including reopening the database and permission revocation.
+
+The new pack has 29 acceptance cases: 9 for incremental index construction,
+13 for indexed scoring and 7 for chunking. Query checks reject body reads, count
+rows crossing into Python and inspect term-index lookup plans. These verify
+specific mechanisms, not an OOM stress test or million-document throughput claim.
+
+The earlier delivery record below describes its original runtime and scope.
+
 ## Runtime
 
 Validated in this environment using:

@@ -59,24 +59,33 @@ Opening `web/index.html` directly will not execute Python; use the local server.
 | Mode | Activities | What is validated |
 |---|---:|---|
 | Quick checks | 8 | Fixed answer keys and explanations of the practice contracts |
-| Coding missions | 16 | Real original pytest cases, run against your submitted Python |
-| Interview / architecture rehearsals | 17 | Word/keyword structure cues, followed by YOUR visible rubric self-review |
+| Coding missions | 19 | Real pytest acceptance cases, run against your submitted Python |
+| Architecture discussions | 5 | Word/keyword structure cues, followed by YOUR visible rubric self-review |
 
-The seven chapters are:
+The six chapters are:
 
-1. **Python, without the fog:** sets, scoring, tenant boundaries, filters,
-   top-K ordering, versions, context budgets and cancellation.
+1. **Python, without the fog:** five checks on sets, scoring, tenant boundaries,
+   filters and top-K ordering.
 2. **Build your first search engine:** four guided checkpoints sharing one file.
 3. **The backend coding path:** latest versions, category counts, unassisted
-   search, cited context and revision-aware ingestion.
-4. **Reliability & async lab:** federated search, incremental stream parsing,
-   bounded fetching, LLM-style fallback and refactoring.
+   search, disk-backed indexing, indexed scoring, chunking, context selection and
+   revision-aware ingestion. Context/version quizzes sit beside their topics.
+4. **Reliability & async lab:** refactoring, bounded fetching, cancellation,
+   federated search, incremental stream parsing and LLM-style fallback.
 5. **FastAPI & backend extras:** the original endpoint and idempotent ingestion.
-6. **Tell your engineering story:** twelve general prompts for explaining projects,
-   technical decisions and engineering experience.
-7. **Think beyond the function:** five architecture discussions from V2.
+6. **Think beyond the function:** five architecture discussions from V2.
 
 ### A good first session
+
+The scalable-search continuation is **full-scan search → build an index on disk →
+query posting weights with a SQL result limit → create searchable chunks → select
+cited context**. See [the indexed pack](packs/indexed/README.md) for the schema,
+SQL primer, exact contracts and runnable demo. The earlier scan is a correctness
+baseline: streaming input can reduce source buffering but does not eliminate
+per-query scanning or accumulation of all matching hits. The indexed pack does
+not claim a million-document benchmark; it checks bounded Python result transfer,
+indexed lookups, persistence and the connection to context construction.
+
 
 Choose **Start guided search** on the homepage.
 
@@ -108,10 +117,10 @@ standalone search acceptance tests.
 A test result describes the last submitted code. Editing it does not rerun tests.
 When the current draft differs from that submission, the feedback is marked stale.
 
-### Interviews: an important distinction
+### Architecture self-review
 
 The app is **not connected to an LLM**. It does not grade your answer’s factual
-accuracy, semantic quality, seniority or likelihood of being hired.
+accuracy, semantic quality, seniority or production readiness.
 
 It reports word count, estimated speaking time at 135 words/minute, and whether
 certain cue words occur. These are only review prompts: a strong answer might not
@@ -250,6 +259,6 @@ python -m pytest -q tests_app
 
 These tests are for the app, not your exercise solutions. They cover real pytest
 pass/fail, syntax errors, timeout handling, skipped-suite rejection, HTTP checks,
-state persistence and transparent interview feedback.
+state persistence and transparent architecture feedback.
 
 See `docs/VALIDATION.md` for exactly what was and was not tested for this delivery.

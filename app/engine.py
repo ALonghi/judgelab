@@ -188,7 +188,7 @@ def reference_text(lesson: dict) -> str:
     return text
 
 
-def interview_feedback(lesson: dict, text: str) -> dict:
+def discussion_feedback(lesson: dict, text: str) -> dict:
     if not isinstance(text, str) or len(text) > 30_000:
         raise ValueError('Use an answer under 30,000 characters.')
     words = re.findall(r"\b[\w’-]+\b", text)

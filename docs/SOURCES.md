@@ -13,8 +13,8 @@ teaching contracts.
 ## Application additions
 
 The UI adds XP, eight concept checks, hints, coaching text, reference solutions and
-self-review rubrics. Engineering discussion prompts are general exercises that
-readers can answer using their own experience.
+self-review rubrics. Architecture discussion prompts extend the coding exercises with system-design
+questions.
 
 Reference implementations are checked against the selected exercise tests. Passing
 these tests does not establish every production property. Word and substring cues
