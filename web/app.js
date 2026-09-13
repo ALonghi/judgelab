@@ -209,16 +209,60 @@ function practiceCheck(lesson) {
  if(!check)return '';
  return `<section class="practice-check"><h2>Check your understanding</h2><p>${escapeHTML(check.question)}</p><details><summary>Reveal the explanation</summary><p>${escapeHTML(check.answer)}</p></details></section>`;
 }
+// Read declarations from supplied scaffolding, never from tests or reference solutions.
+function modelFiles(lesson){return (lesson.references||[]).filter(ref=>/(^|\/)models\.py$/.test(ref.name));}
+function exerciseModels(lesson){
+ const models=[];
+ for(const ref of [...modelFiles(lesson),{name:lesson.file||'Exercise',text:lesson.starter||''}]){
+  let model=null;
+  for(const line of ref.text.split('\n')){
+   const cls=line.match(/^class (\w+)(?:\([^)]*\))?:/);
+   if(cls){model={name:cls[1],source:ref.name,fields:[]};models.push(model);continue;}
+   if(/^\S/.test(line)||/^    (?:async )?def /.test(line))model=null;
+   const field=line.match(/^    (\w+):\s*(.+)/);
+   if(model&&field)model.fields.push({name:field[1],detail:field[2].split('#')[0].trim()});
+  }
+ }
+ return models.filter(model=>model.fields.length);
+}
+function modelReference(lesson){
+ const models=exerciseModels(lesson);
+ return `<section id="model-reference" class="model-reference" aria-label="Data models"><p>Exact fields, types and defaults supplied with this exercise.</p><div class="model-list">${models.length?models.map(model=>`<div><h3>${escapeHTML(model.name)}</h3><pre class="model-source" tabindex="0" aria-label="${escapeHTML(model.name)} fields"><code>${model.fields.map(field=>escapeHTML(field.name+': '+field.detail)).join('\n')}</code></pre><small>${escapeHTML(model.source)}</small></div>`).join(''):'<p>This exercise has no supplied record classes. Its function signatures are in the code below.</p>'}</div></section>`;
+}
+// Small, explicit standard-library vocabulary; no claims of Python type inference.
+const pythonMethods={
+ str:['split','rsplit','splitlines','strip','lstrip','rstrip','lower','upper','casefold','join','replace','startswith','endswith','find','count','isdigit','isalpha','isalnum','partition','removeprefix','removesuffix'],
+ list:['append','extend','insert','pop','remove','clear','index','count','sort','reverse','copy'],
+ dict:['get','items','keys','values','setdefault','update','pop','popitem','clear','copy'],
+ set:['add','update','discard','remove','union','intersection','difference','issubset','issuperset','isdisjoint','copy'],
+};
+function completionShortcut(){return typeof navigator!=='undefined'&&/Mac/.test(navigator.platform)?'⌃ . (Control + .)':'Ctrl + .';}
+function exerciseCompletions(cm){
+ const cursor=cm.getCursor(),line=cm.getLine(cursor.line),prefix=line.slice(0,cursor.ch).match(/[A-Za-z_][\w]*$/)?.[0]||'';
+ const from=cursor.ch-prefix.length,member=line[from-1]==='.';
+ if(/string|comment/.test(cm.getTokenAt(cursor).type||''))return null;
+ const options=new Map();
+ function add(name,detail){const old=options.get(name);options.set(name,{text:name,displayText:name+'  '+(old?old.detail+'; ':'')+detail,detail:(old?old.detail+'; ':'')+detail});}
+ for(const model of exerciseModels(current)){
+  if(!member)add(model.name,'model');
+  for(const field of model.fields)add(field.name,model.name+': '+field.detail);
+ }
+ if(member)for(const [type,names] of Object.entries(pythonMethods))for(const name of names)add(name,type+' method');
+ if(!member)for(const word of [...(cm.getValue().match(/[A-Za-z_]\w*/g)||[]),...(CodeMirror.hintWords?.python||[])])if(!options.has(word))options.set(word,{text:word});
+ return {list:[...options.values()].filter(item=>item.text.startsWith(prefix)&&(member||item.text!==prefix)).sort((a,b)=>a.text.localeCompare(b.text)),from:CodeMirror.Pos(cursor.line,from),to:cursor};
+}
+function completeExercise(cm){cm.showHint({hint:exerciseCompletions,completeSingle:false});}
 function codeView(){
  if(phase===2)return codeFeedback();
- return `<div class="timer-note">Optional timebox · syntax references are allowed during practice</div><div class="workspace"><aside class="task-panel"><h3>Your acceptance contract</h3><pre class="contract">${escapeHTML(current.contract)}</pre>${btn(`${icon('book')} Models & test source`,'references','secondary small')}<div class="hint-box"><h3>A nudge, not the answer</h3><div id="hints">${hintHTML()}</div>${btn(`${icon('help')} ${hintCount?'Another hint':'Show a hint'}`,'hint','ghost small',hintCount>=current.hints.length?'disabled':'')}</div><div class="source-note">${escapeHTML(current.file)}<br>${current.pack==='guided'?'All four guided stages share this file. Your other functions are preserved.':'A separate workspace for this original exercise.'}</div></aside><section class="editor-panel"><div class="editor-toolbar"><span class="file">${icon('code')} ${escapeHTML(current.file.split('/').pop())}</span><div class="editor-tools"><button class="tool-button" data-action="jump">Jump to target</button><button class="tool-button" data-action="focus" title="Toggle focus mode" aria-label="Toggle focus mode">${icon('focus')}</button><button class="tool-button" data-action="reset" title="Reset entire shared file" aria-label="Reset file">${icon('review')}</button></div></div><textarea id="code-source" aria-label="Python code editor"></textarea><div class="editor-status"><span>Python · 4 spaces · no AI completion</span><button class="tool-button" data-action="download-code">Export .py ${icon('download')}</button></div><div class="editor-bottom"><span id="save-state" class="save-state">${icon('check')} ${boot.hosted?'Saved to your private instance':'Saved on this computer'}</span><div class="layout-actions">${timerButton()}<span class="shortcut">⌘ / Ctrl ↵</span>${btn(`${icon('play')} Run tests`,'run','primary',busy?'disabled':'')}</div></div></section></div>${feedback?`<div class="info-strip">${icon('info')}<div>Your last submission: <strong>${feedback.passed||0} passed</strong>${feedback.failed?`, ${feedback.failed} failed`:''}. Edits are not validated until you run tests again. <button class="inline-link" data-action="phase" data-phase="2">Open last feedback</button></div></div>`:''}`;
+ return `<div class="timer-note">Optional timebox · syntax references are allowed during practice</div><div class="workspace"><aside class="task-panel"><h3>Your acceptance contract</h3><pre class="contract">${escapeHTML(current.contract)}</pre>${btn(`${icon('book')} Models & test source`,'references','secondary small')}<div class="hint-box"><h3>A nudge, not the answer</h3><div id="hints">${hintHTML()}</div>${btn(`${icon('help')} ${hintCount?'Another hint':'Show a hint'}`,'hint','ghost small',hintCount>=current.hints.length?'disabled':'')}</div><div class="source-note">${escapeHTML(current.file)}<br>${current.pack==='guided'?'All four guided stages share this file. Your other functions are preserved.':'A separate workspace for this original exercise.'}</div></aside><section class="editor-panel"><div class="editor-toolbar"><span class="file">${icon('code')} ${escapeHTML(current.file.split('/').pop())}</span><button class="btn secondary small models-toggle" data-action="models" aria-controls="model-reference" aria-expanded="true">${icon('book')} Data models</button><div class="editor-tools"><button class="tool-button" data-action="complete" title="Show names, fields and methods (${completionShortcut()})">Complete</button><button class="tool-button" data-action="jump">Jump to target</button><button class="tool-button" data-action="focus" title="Toggle focus mode" aria-label="Toggle focus mode">${icon('focus')}</button><button class="tool-button" data-action="reset" title="Reset entire shared file" aria-label="Reset file">${icon('review')}</button></div></div>${modelReference(current)}<textarea id="code-source" aria-label="Python code editor"></textarea><div class="editor-status"><span>Python · Suggestions: ${completionShortcut()}</span><button class="tool-button" data-action="download-code">Export .py ${icon('download')}</button></div><div class="editor-bottom"><span id="save-state" class="save-state">${icon('check')} ${boot.hosted?'Saved to your private instance':'Saved on this computer'}</span><div class="layout-actions">${timerButton()}<span class="shortcut">⌘ / Ctrl ↵</span>${btn(`${icon('play')} Run tests`,'run','primary',busy?'disabled':'')}</div></div></section></div>${feedback?`<div class="info-strip">${icon('info')}<div>Your last submission: <strong>${feedback.passed||0} passed</strong>${feedback.failed?`, ${feedback.failed} failed`:''}. Edits are not validated until you run tests again. <button class="inline-link" data-action="phase" data-phase="2">Open last feedback</button></div></div>`:''}`;
 }
 function hintHTML(){return current.hints.slice(0,hintCount).map((h,i)=>`<div class="hint"><small>Hint ${i+1} of ${current.hints.length}</small>${escapeHTML(h)}</div>`).join('');}
 function mountEditor(){
  const area=$('#code-source');area.value=localCode;
  editor=CodeMirror.fromTextArea(area,{mode:{name:'python',version:3},lineNumbers:true,indentUnit:4,tabSize:4,indentWithTabs:false,matchBrackets:true,styleActiveLine:true,lineWrapping:false,
-  extraKeys:{'Tab':cm=>cm.somethingSelected()?cm.indentSelection('add'):cm.replaceSelection('    ','end'), 'Shift-Tab':'indentLess','Ctrl-Enter':()=>submitCode(),'Cmd-Enter':()=>submitCode(),'Ctrl-S':()=>saveDraft(current.id,editor.getValue()),'Cmd-S':()=>saveDraft(current.id,editor.getValue())}});
+  extraKeys:{'Ctrl-.':completeExercise,'Tab':cm=>cm.somethingSelected()?cm.indentSelection('add'):cm.replaceSelection('    ','end'), 'Shift-Tab':'indentLess','Ctrl-Enter':()=>submitCode(),'Cmd-Enter':()=>submitCode(),'Ctrl-S':()=>saveDraft(current.id,editor.getValue()),'Cmd-S':()=>saveDraft(current.id,editor.getValue())}});
  editor.on('change',cm=>noteDraft(cm.getValue()));
+ editor.on('inputRead',(cm,change)=>{if(change.origin==='+input'&&/[.A-Za-z_0-9]$/.test(change.text.join('')))completeExercise(cm);});
  setTimeout(()=>{editor?.refresh();jumpToTarget(false);},40);
 }
 function jumpToTarget(focus=true){if(!editor)return;const target=current.targets[0],lines=editor.getValue().split('\n');let index=lines.findIndex(line=>new RegExp(`^(async )?def ${target}\\(`).test(line));if(index<0)index=0;editor.setCursor({line:index,ch:0});editor.scrollIntoView({line:index,ch:0},45);if(focus)editor.focus();}
@@ -349,6 +393,8 @@ document.addEventListener('click',async event=>{
    case 'jump':jumpToTarget();break;
    case 'focus':focusMode=!focusMode;document.body.classList.toggle('focus-mode',focusMode);setTimeout(()=>editor?.refresh(),40);break;
    case 'hint':hintCount=Math.min(hintCount+1,current.hints.length);$('#hints').innerHTML=hintHTML();target.disabled=hintCount>=current.hints.length;target.innerHTML=icon('help')+' Another hint';break;
+   case 'models':{const panel=$('#model-reference');panel.hidden=!panel.hidden;document.querySelector('[data-action="models"]').setAttribute('aria-expanded',String(!panel.hidden));editor?.refresh();break;}
+   case 'complete':if(editor){editor.focus();completeExercise(editor);}break;
    case 'references':showReferences();break;
    case 'reveal':await reveal();break;
    case 'copy-reference':{const text=$('#reference-answer').textContent;try{await navigator.clipboard.writeText(text);toast('Reference copied. Compare it with your code before running again.');}catch(e){toast('Clipboard unavailable. Select the reference text and copy it manually.');}break;}

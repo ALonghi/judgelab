@@ -272,3 +272,15 @@ pass/fail, syntax errors, timeout handling, skipped-suite rejection, HTTP checks
 state persistence and transparent architecture feedback.
 
 See `docs/VALIDATION.md` for exactly what was and was not tested for this delivery.
+
+### Editor references and completion
+
+Use **Data models** next to the filename to show or hide the supplied fields,
+types and defaults above the editor. Models declared in the exercise file are
+included too. Suggestions appear as you type; click **Complete** or press
+**Control + .** (⌃ . on Mac) to open them manually. Use arrow keys and Enter to
+choose, or Escape to dismiss. Command-Space and Option-Space are not used.
+
+Suggestions include model fields and common Python string and collection methods.
+They show the model or built-in type each name belongs to, but do not infer your
+variable’s type. Completion runs locally and never calls AI.

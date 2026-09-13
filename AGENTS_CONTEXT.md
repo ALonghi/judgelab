@@ -929,6 +929,14 @@ The editor should support basic features such as:
 * reset/retry,
 * optional export.
 
+Keep supplied model fields, types and defaults accessible beside the filename,
+with the reference visible above the editor. Include models declared in learner
+starter files as well as shared model modules. Offer local name, field and common
+Python method completion with a clickable control and Mac-aware shortcut labels.
+Preserve Command-Space and Option-Space for the learner’s OS tools. Completion
+must describe its limits honestly and draw only on supplied scaffolding and
+standard Python vocabulary, keeping reference solutions gated.
+
 A full IDE is not necessary.
 
 Avoid adding features that distract from interview practice.
