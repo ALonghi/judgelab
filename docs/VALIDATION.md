@@ -126,3 +126,17 @@ behaviour were not executed in this Linux environment.
 There is no LLM-based code review or semantic interview grading. Tests cover their
 assertions only. This is a localhost tool for your own trusted code; submitted code
 still has the operating-system permissions of the user running the server.
+
+## Acceptance scope audit (2026-09-13)
+
+All 19 coding activities pass their supplied reference through the real runner.
+Replacing each declared target in turn with a `NotImplementedError` stub causes
+its acceptance suite to fail with actual test failures. This regression runs in
+`tests_app/test_test_scope.py`, including the three refactoring targets separately.
+It establishes that targets are exercised, not exhaustive behavioral coverage.
+
+Guided stage 01 selects nine scoring tests; it intentionally permits later
+functions to remain unimplemented. The final guided stage runs all 44 helper and
+search integration tests and rejects an unimplemented `search_documents`.
+The editor and results now state the scope and link sibling activities sharing
+the same draft. An activity pass is not a whole-file validation claim.

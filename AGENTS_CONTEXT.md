@@ -777,7 +777,11 @@ Avoid giving the completed implementation immediately.
 
 Coding exercises must execute actual code.
 
-A solution should pass only when the real tests pass.
+A solution should pass only when the real tests pass. Show each activity's tested
+functions and test count before submission and beside feedback. Shared files can
+contain later stages: passing one selected stage validates only that stage. Link
+the other activities sharing that file so learners can validate work done ahead.
+The final guided-search stage validates all helpers and full search integration.
 
 Do not simulate success using text comparison.
 
