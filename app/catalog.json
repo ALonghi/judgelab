@@ -614,7 +614,8 @@
     },
     {
       "id": "c-search",
-      "scenario": {"prompt":"Build search for a small document collection. Results must be relevant, readable and predictable.","requirements":["Use the established title/body score and access/category rules.","Exclude zero scores; sort by score descending, then document ID.","Validate limit first and consume input once. This is a full-scan baseline."],"deliverable":"Return a limited list of SearchHit records."},
+      "optional": true,
+      "scenario": {"prompt":"This optional recap repeats the final guided-search contract without its helper scaffold. It adds no new requirements. If you completed guided search, continue to disk-backed indexing.","requirements":["Use the established title/body score and access/category rules.","Exclude zero scores; sort by score descending, then document ID.","Validate limit first and consume input once. This is a full-scan baseline."],"deliverable":"Return a limited list of SearchHit records."},
       "implementation": {
         "state": "Keep normalized query terms and a list of SearchHit results; no database or external search engine is required.",
         "steps": [
@@ -648,7 +649,7 @@
         ]
       },
       "problem": {
-        "title": "Build useful search for a shared document service",
+        "title": "Optional recap: build search independently",
         "problem": "A small document service needs search that is useful and predictable. It must respect customer boundaries, sharing rules and category selections while returning the best matches first. This is the small-corpus correctness baseline. An iterable can stream source documents, but collecting all matching hits still grows memory, and a scan still reads every document per query. The following indexed-search checkpoints address those costs separately.",
         "reasoning": [
           "A query matches three documents: one from another firm, one private document the user cannot read and one readable document.",
@@ -692,8 +693,8 @@
       },
       "track": "core",
       "kind": "code",
-      "title": "Build useful search for a shared document service",
-      "summary": "A small document service needs search that is useful and predictable.",
+      "title": "Optional recap: build search independently",
+      "summary": "Repeat guided search independently, or continue to indexing. No new requirements.",
       "pack": "v2",
       "file": "practice/round02_search.py",
       "workspace": "v2/practice/round02_search.py",
@@ -754,7 +755,7 @@
       "xp": 120,
       "selection": null,
       "depends": [
-        "c-search"
+        "g-search"
       ],
       "expected_tests": 9,
       "problem": {

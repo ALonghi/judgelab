@@ -427,6 +427,12 @@ ranked text. The source revision quiz sits before event ingestion; cancellation
 follows basic async fetching. Preserve activity IDs when changing their order so
 saved work and progress remain associated with the original activities.
 
+`c-search` is an optional independent recap of `g-search`, which already runs
+the same acceptance contract. Preserve its ID, workspace and saved progress, but
+exclude optional activities from chapter numbering, chapter completion and
+automatic continuation. Keep recaps accessible from their chapter and Code arena.
+The required backend path moves from category counts to index construction.
+
 The indexed pack uses local SQLite files and synthetic data, without an external
 service. Distinguish source buffering, result buffering and query scan cost.
 Never equate a generator with indexed retrieval, an in-memory postings dictionary

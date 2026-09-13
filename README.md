@@ -71,9 +71,10 @@ The six chapters are:
 1. **Python, without the fog:** five checks on sets, scoring, tenant boundaries,
    filters and top-K ordering.
 2. **Build your first search engine:** four guided checkpoints sharing one file.
-3. **The backend coding path:** latest versions, category counts, unassisted
-   search, disk-backed indexing, indexed scoring, chunking, context selection and
+3. **The backend coding path:** latest versions, category counts, disk-backed
+   indexing, indexed scoring, chunking, context selection and
    revision-aware ingestion. Context/version quizzes sit beside their topics.
+   Unassisted search remains available as an optional recap, outside chapter progression.
 4. **Reliability & async lab:** refactoring, bounded fetching, cancellation,
    federated search, incremental stream parsing and LLM-style fallback.
 5. **FastAPI & backend extras:** the original endpoint and idempotent ingestion.

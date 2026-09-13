@@ -56,7 +56,8 @@ const findLesson = id => lessons().find(x=>x.id===id);
 const trackFor = id => catalog.tracks.find(x=>x.id===id);
 const complete = id => !!state.completed[id];
 const xp = () => lessons().reduce((n,l)=>n+(state.completed[l.id]?.xp||0),0);
-const byTrack = id => lessons().filter(x=>x.track===id);
+const requiredLessons = () => lessons().filter(x=>!x.optional);
+const byTrack = id => requiredLessons().filter(x=>x.track===id);
 const queued = () => lessons().filter(l => (l.kind==='code' && state.results[l.id] && !state.results[l.id].success) || (l.kind==='quiz' && state.results[l.id] && !state.results[l.id].success) || (l.kind==='discussion' && state.reviews[l.id]?.checks.includes('revise')));
 const dayKey = date => new Date(date).toLocaleDateString('en-CA');
 
@@ -152,15 +153,15 @@ function shell(section) {
   document.body.classList.toggle('focus-mode',focusMode && section==='lesson');
 }
 function refreshTotals(){if($('#xp-total'))$('#xp-total').textContent=xp()+' XP';if($('#done-total'))$('#done-total').textContent=lessons().filter(l=>complete(l.id)).length+' / '+lessons().length+' activities';}
-function nextFor(id){const l=findLesson(id);const group=byTrack(l.track);const index=group.findIndex(x=>x.id===id);return group[index+1] || lessons().find(x=>!complete(x.id)&&x.id!==id) || group[0];}
+function nextFor(id){const l=findLesson(id);const group=lessons().filter(x=>x.track===l.track);const index=group.findIndex(x=>x.id===id);return group.slice(index+1).find(x=>!x.optional) || requiredLessons().find(x=>!complete(x.id)&&x.id!==id) || byTrack(l.track)[0];}
 function row(l,i=0) {
  const isDone=complete(l.id),method=l.kind==='code'?'Tested coding':l.kind==='quiz'?'Quick check':'Rubric review';
- return `<a class="lesson-row" data-action="lesson" data-id="${l.id}" href="#lesson/${l.id}"><span class="step-number ${isDone?'done':''}">${isDone?icon('check'):String(i+1).padStart(2,'0')}</span><span class="lesson-row-text"><h3>${escapeHTML(l.title)}</h3><p>${escapeHTML(l.summary)}</p></span><span class="lesson-row-meta">${badge(isDone?(l.kind==='discussion'?'Reviewed':'Completed'):method,isDone?'done':'outline')}<span class="subtle">${l.minutes} min</span>${icon('chevron')}</span></a>`;
+ return `<a class="lesson-row" data-action="lesson" data-id="${l.id}" href="#lesson/${l.id}"><span class="step-number ${isDone?'done':''}">${isDone?icon('check'):l.optional?'↺':String(i+1).padStart(2,'0')}</span><span class="lesson-row-text"><h3>${escapeHTML(l.title)}</h3><p>${escapeHTML(l.summary)}</p></span><span class="lesson-row-meta">${badge(isDone?(l.kind==='discussion'?'Reviewed':'Completed'):method,isDone?'done':'outline')}<span class="subtle">${l.minutes} min</span>${icon('chevron')}</span></a>`;
 }
 function renderHome(){
  shell('home');
  const today=state.activity.filter(x=>dayKey(x.at)===dayKey(Date.now())).length;
- const next=lessons().find(x=>x.track==='guided'&&!complete(x.id))||lessons().find(x=>!complete(x.id))||lessons()[0];
+ const next=lessons().find(x=>x.track==='guided'&&!complete(x.id))||requiredLessons().find(x=>!complete(x.id))||requiredLessons()[0];
  $('#main').innerHTML=`<section class="hero"><div class="hero-main"><div class="eyebrow">BUILD YOUR BACKEND ENGINEERING SKILLS</div><h1>Turn “I get it” into<br>“I built it.”</h1><p>Your Python practice, one clear challenge at a time. Write real code, run real tests, and learn exactly what to fix next.</p><div class="hero-actions">${btn(`${complete('g-score')?'Continue learning':'Start guided search'} ${icon('arrow')}`,'lesson','primary',`data-id="${next.id}"`)}${btn('Quick warm-up','lesson','ghost',`data-id="q-sets"`)}</div></div><aside class="today-card"><div class="eyebrow">SMALL STEPS, REAL PROGRESS</div><h3>Your daily rhythm</h3><div class="daily-ring" style="--p:${Math.min(today/3*100,100)}"><div class="ring-text"><strong>${today}<span class="subtle"> / 3</span></strong><small>practice attempts</small></div></div><p>${today>=3?'You showed up. That’s how fluency grows.':'One attempt is a start. Three makes a good practice session.'}</p></aside></section>
  <div class="section-head"><div><h2>Choose your next chapter</h2><p>Start guided. Build independently. Explain your decisions.</p></div>${badge('No LeetCode puzzles','outline')}</div>
  <div class="track-grid">${catalog.tracks.map((t,i)=>{const group=byTrack(t.id),done=group.filter(l=>complete(l.id)).length;return `<a class="track-card" data-action="navigate" data-route="track/${t.id}" href="#track/${t.id}"><div class="track-card-top"><span class="track-icon ${t.color}">${icon(t.icon)}</span><span class="subtle">CHAPTER ${String(i+1).padStart(2,'0')}</span></div><h3>${escapeHTML(t.title)}</h3><p>${escapeHTML(t.subtitle)}</p><div class="track-footer"><span>${group.length} activities</span><span>${done} of ${group.length} complete</span></div>${progress(done/group.length*100)}</a>`;}).join('')}</div>
@@ -170,10 +171,11 @@ function renderHome(){
 function renderList(type,id){
  shell(type);
  let group,title,description;
+ const recaps=type==='track'?lessons().filter(l=>l.track===id&&l.optional):[];
  if(type==='track') {const t=trackFor(id);if(!t){renderHome();return;}group=byTrack(id);title=t.title;description=t.subtitle;}
  else if(type==='code'){group=lessons().filter(x=>x.kind==='code');title='Code it. Test it. Understand it.';description='16 coding missions using the supplied practice tests. The guided search stages share a file, so each builds on your previous work.';}
  if(listFilter==='unfinished')group=group.filter(l=>!complete(l.id));
- $('#main').innerHTML=`<div class="page-title"><div><div class="eyebrow">${type==='track'?'YOUR LEARNING PATH':type==='code'?'PYTHON 3.13+ · LOCAL PYTEST':'SPEAK ALOUD. CAPTURE THE ESSENTIALS.'}</div><h1>${escapeHTML(title)}</h1><p>${escapeHTML(description)}</p></div></div><div class="filter-bar"><button class="filter-pill ${listFilter==='all'?'active':''}" data-action="list-filter" data-value="all">All activities</button><button class="filter-pill ${listFilter==='unfinished'?'active':''}" data-action="list-filter" data-value="unfinished">Not completed yet</button></div><div class="lesson-list">${group.length?group.map((l,i)=>row(l,i)).join(''):'<div class="empty"><h2>This chapter is complete.</h2><p>Switch to all activities to repeat a lesson without hints.</p></div>'}</div><div class="footer-note">Suggested times are optional practice timeboxes. You can open any activity; there are no artificial locks.</div>`;
+ $('#main').innerHTML=`<div class="page-title"><div><div class="eyebrow">${type==='track'?'YOUR LEARNING PATH':type==='code'?'PYTHON 3.13+ · LOCAL PYTEST':'SPEAK ALOUD. CAPTURE THE ESSENTIALS.'}</div><h1>${escapeHTML(title)}</h1><p>${escapeHTML(description)}</p></div></div><div class="filter-bar"><button class="filter-pill ${listFilter==='all'?'active':''}" data-action="list-filter" data-value="all">All activities</button><button class="filter-pill ${listFilter==='unfinished'?'active':''}" data-action="list-filter" data-value="unfinished">Not completed yet</button></div><div class="lesson-list">${group.length?group.map((l,i)=>row(l,i)).join(''):'<div class="empty"><h2>This chapter is complete.</h2><p>Switch to all activities to repeat a lesson without hints.</p></div>'}</div>${recaps.length?`<section class="review-section"><h2>Optional recap</h2><p>Independent practice of an earlier exercise. This does not count toward chapter completion.</p><div class="lesson-list">${recaps.map(l=>row(l)).join('')}</div></section>`:''}<div class="footer-note">Suggested times are optional practice timeboxes. You can open any activity; there are no artificial locks.</div>`;
 }
 function renderReview(){
  shell('review');const queue=queued(),bookmarks=lessons().filter(l=>state.bookmarks.includes(l.id));
@@ -199,7 +201,7 @@ async function openLesson(id){
 }
 function lessonHeader(){
  const t=trackFor(current.track),group=byTrack(t.id),n=group.findIndex(x=>x.id===current.id)+1;
- return `<a class="back-link" data-action="navigate" data-route="track/${t.id}" href="#track/${t.id}">${icon('back')} Back to chapter</a><div class="lesson-heading"><div><div class="eyebrow">${escapeHTML(t.title)} · ${String(n).padStart(2,'0')} / ${String(group.length).padStart(2,'0')}</div><h1>${escapeHTML(current.title)}</h1>${current.problem?'':`<p>${escapeHTML(current.summary)}</p>`}</div><div class="lesson-meta">${badge('+'+current.xp+' XP','outline')}<button class="bookmark ${state.bookmarks.includes(current.id)?'on':''}" data-action="bookmark" aria-label="Bookmark this activity" title="Save for later">${icon('bookmark')}</button></div></div>`;
+ return `<a class="back-link" data-action="navigate" data-route="track/${t.id}" href="#track/${t.id}">${icon('back')} Back to chapter</a><div class="lesson-heading"><div><div class="eyebrow">${escapeHTML(t.title)} · ${current.optional?'OPTIONAL RECAP':`${String(n).padStart(2,'0')} / ${String(group.length).padStart(2,'0')}`}</div><h1>${escapeHTML(current.title)}</h1>${current.problem?'':`<p>${escapeHTML(current.summary)}</p>`}${current.optional?`<p>This repeats the guided-search contract. Your saved work remains available.</p>${btn('Continue to indexing','lesson','secondary','data-id="c-index-build"')}`:''}</div><div class="lesson-meta">${badge('+'+current.xp+' XP','outline')}<button class="bookmark ${state.bookmarks.includes(current.id)?'on':''}" data-action="bookmark" aria-label="Bookmark this activity" title="Save for later">${icon('bookmark')}</button></div></div>`;
 }
 function phaseTabs(){
  const practice=current.kind==='code'?'Write code':current.kind==='quiz'?'Quick check':'Your answer';

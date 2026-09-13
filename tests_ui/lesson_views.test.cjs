@@ -79,3 +79,34 @@ test('scenario and reference content is HTML escaped', () => {
   assert.ok(html.includes('&lt;img'));
   assert.ok(!html.includes('<img'));
 });
+
+test('optional search recap is accessible but skipped by chapter progression', () => {
+  assert.equal(vm.runInContext("findLesson('c-search').optional", context), true);
+  assert.equal(vm.runInContext("byTrack('core').length", context), 9);
+  assert.equal(vm.runInContext("nextFor('c-counts').id", context), 'c-index-build');
+  assert.equal(vm.runInContext("nextFor('c-search').id", context), 'c-index-build');
+  const html = vm.runInContext("state.bookmarks=[]; current=findLesson('c-search'); lessonHeader()", context);
+  assert.ok(html.includes('OPTIONAL RECAP'));
+  assert.ok(!html.includes('03 / 10'));
+  assert.ok(html.includes('href="#lesson/c-index-build"'));
+  assert.ok(vm.runInContext("row(findLesson('c-search'))", context).includes('href="#lesson/c-search"'));
+  const indexHeader = vm.runInContext("current=findLesson('c-index-build'); lessonHeader()", context);
+  assert.ok(indexHeader.includes('03 / 09'));
+});
+
+test('chapter lists separate recaps and home continuation skips them', () => {
+  const elements = {};
+  context.document.querySelector = selector => elements[selector] ||= {innerHTML: ''};
+  context.document.body = {classList: {remove() {}, toggle() {}}};
+  vm.runInContext('state={completed:{},results:{},reviews:{},bookmarks:[],activity:[]}; listFilter="all"; renderList("track","core")', context);
+  const html = elements['#main'].innerHTML;
+  assert.ok(html.indexOf('data-id="c-search"') > html.indexOf('<h2>Optional recap</h2>'));
+  assert.equal((html.match(/data-id="c-search"/g) || []).length, 1);
+  vm.runInContext('for(const l of requiredLessons())state.completed[l.id]={xp:1}; delete state.completed["c-index-build"]; renderHome()', context);
+  assert.ok(elements['#main'].innerHTML.includes('data-id="c-index-build"'));
+  assert.ok(elements['#main'].innerHTML.includes('8 of 9 complete'));
+  vm.runInContext('state.completed["c-index-build"]={xp:1}; renderHome()', context);
+  assert.ok(elements['#main'].innerHTML.includes('9 of 9 complete'));
+  assert.ok(!elements['#main'].innerHTML.includes('data-id="c-search"'));
+  vm.runInContext('state.completed={}', context);
+});
