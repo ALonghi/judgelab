@@ -29,9 +29,27 @@ flyctl secrets import --app judgelab-alonghi --stage < /path/to/private/runtime.
 flyctl deploy --remote-only --ha=false
 ```
 
-No GitHub deployment secret is needed for a direct CLI deployment. If CI is added
-later, use an app-scoped, expiring Fly deploy token in a GitHub Actions secret.
-Do not put a Fly deployment token in the application's runtime environment.
+## Automatic deployment
+
+Every push to `main` runs `.github/workflows/deploy.yml`: Python 3.13 app tests
+and Node.js UI tests must pass before Fly.io deploys the pushed commit. Deployments
+are serialized and retain `--ha=false` for the single stateful Machine. A manual
+rerun is available through GitHub Actions → Deploy to Fly.io → Run workflow on
+`main`. Failed tests leave the current deployment running.
+
+The repository's `FLY_API_TOKEN` Actions secret holds a deploy token scoped to
+`judgelab-alonghi`, created with a one-year expiry on 2026-09-13. Rotate it before
+2027-09-13. The token is provided only to the deploy step, never the runtime app.
+To rotate from an authenticated workstation without displaying the token:
+
+```sh
+set -o pipefail
+flyctl tokens create deploy --app judgelab-alonghi --expiry 8760h \
+  --name github-actions-deploy | gh secret set FLY_API_TOKEN --repo ALonghi/judgelab
+```
+
+Actions and flyctl are pinned; update their revisions/versions deliberately.
+See [Fly.io's GitHub Actions deployment guide](https://fly.io/docs/launch/continuous-deployment-with-github-actions/).
 
 The hosted instance starts with its own progress. Export/import through the app
 if you want to move local work; import replaces the target instance's progress.
