@@ -238,3 +238,22 @@ def test_studio_removed_but_architecture_review_still_works(http_app):
     status, _, _ = request(base, '/api/review',
                            {'id': 's-search', 'checks': ['yes'] * 4}, headers)
     assert status == 200
+
+
+def test_old_tab_token_is_rejected_before_mutation_and_can_be_refreshed(http_app, monkeypatch, tmp_path):
+    base, server = http_app
+    monkeypatch.setattr(server, "store", Store(tmp_path / "progress.json"))
+    old_token = json.loads(request(base, '/api/bootstrap')[1])['token']
+    monkeypatch.setattr(server, 'token', 'replacement-token')
+    payload = {'accepted': True}
+    status, body, _ = request(base, '/api/consent', payload, {'X-Lab-Token': old_token})
+    assert status == 403
+    assert json.loads(body)['code'] == 'session_token_expired'
+    assert not server.store.state['consent']
+    for _ in range(2):
+        status, body, headers = request(base, '/api/bootstrap')
+        assert status == 200
+        assert headers['Cache-Control'] == 'no-store'
+        token = json.loads(body)['token']
+        assert request(base, '/api/consent', payload, {'X-Lab-Token': token})[0] == 200
+    assert server.store.state['consent']

@@ -224,7 +224,9 @@ and startup; check with:
 python run.py --check
 ```
 
-**A stale session-token error:** reload the browser after restarting the server.
+**A stale session-token error:** tabs automatically refresh their token and retry
+once after a server restart, preserving the current draft. Reload older tabs once
+to load this recovery behavior.
 
 **An infinite loop:** the runner stops the attempt after 20 seconds. Inspect the
 feedback, fix the loop or task cleanup, and retry. A timer in the UI is independent.

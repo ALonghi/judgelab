@@ -141,7 +141,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond({'error':'Cross-origin requests are rejected.'},403)
                 return False
             if self.headers.get('X-Lab-Token') != self.server.token:
-                self.respond({'error':'Session token missing or expired. Reload the app.'},403)
+                self.respond({'error':'Session token missing or expired. Reload the app.',
+                              'code':'session_token_expired'},403)
                 return False
             if not self.headers.get('Content-Type','').startswith('application/json'):
                 self.respond({'error':'JSON content is required.'},415)

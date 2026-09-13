@@ -60,14 +60,41 @@ const byTrack = id => lessons().filter(x=>x.track===id);
 const queued = () => lessons().filter(l => (l.kind==='code' && state.results[l.id] && !state.results[l.id].success) || (l.kind==='quiz' && state.results[l.id] && !state.results[l.id].success) || (l.kind==='discussion' && state.reviews[l.id]?.checks.includes('revise')));
 const dayKey = date => new Date(date).toLocaleDateString('en-CA');
 
-async function api(path, body) {
+async function api(path, body, retrySession=true) {
   const options = body===undefined ? {} : {method:'POST',headers:{'Content-Type':'application/json','X-Lab-Token':token},body:JSON.stringify(body)};
-  let response;
-  try {response = await fetch(path,options);} catch(e) {throw new Error(boot?.hosted?'The private instance is unreachable. Wait a moment and reload; your browser draft is preserved.':'The local server is unreachable. Start python run.py again; your browser draft is preserved.');}
-  let data;
-  try {data=await response.json();} catch(e) {throw new Error(`Unexpected server response (${response.status}). Check the terminal.`);}
-  if(!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
-  return data;
+  const controller = new AbortController();
+  options.signal = controller.signal;
+  // Include response-body reading; a connection can stall after headers arrive.
+  // Python runs have a 20-second server deadline, plus startup/network allowance.
+  const deadline = setTimeout(()=>controller.abort(), path==='/api/run'?45000:15000);
+  try {
+    let response;
+    try {response = await fetch(path,options);} catch(e) {
+      if(controller.signal.aborted) throw e;
+      throw new Error(boot?.hosted?'The private instance is unreachable. Wait a moment and retry; your browser draft is preserved.':'The local server is unreachable. Start python run.py again; your browser draft is preserved.');
+    }
+    let data;
+    try {data=await response.json();} catch(e) {
+      if(controller.signal.aborted) throw e;
+      throw new Error(`Unexpected server response (${response.status}). Reload the page and try again.`);
+    }
+    if(body!==undefined && retrySession && response.status===403 && data.code==='session_token_expired') {
+      // The guard rejected this request before executing it, so one retry is safe.
+      // Refresh only the token: replacing state would discard this tab's work.
+      clearTimeout(deadline);
+      const session = await api('/api/bootstrap');
+      if(typeof session.token!=='string' || !session.token) throw new Error('Could not refresh the session. Reload the app.');
+      token = session.token;
+      return await api(path, JSON.parse(options.body), false);
+    }
+    if(!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+    return data;
+  } catch(e) {
+    if(controller.signal.aborted) throw new Error('The request timed out. Your submission may have reached the server. Try again, or reload if it keeps happening.');
+    throw e;
+  } finally {
+    clearTimeout(deadline);
+  }
 }
 function toast(message) {const box=$('#toast');box.textContent=message;box.classList.add('show');clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>box.classList.remove('show'),4200);}
 function inline(text) {return escapeHTML(text).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');}
@@ -368,7 +395,7 @@ async function importBackup(file){
   toast(result.message);current=null;renderSettings();
  }catch(e){toast('Import failed: '+e.message);}
 }
-async function navigate(route){if(busy){toast('Let the current test run finish before leaving.');return;}await flushDraft();location.hash=route;}
+async function navigate(route){if(busy){toast('Let the current submission finish before leaving.');return;}await flushDraft();location.hash=route;}
 async function handleRoute(){
  if(busy){return;}
  await flushDraft();current=null;editor=null;clearInterval(timerInterval);focusMode=false;
@@ -386,7 +413,7 @@ document.addEventListener('click',async event=>{
   event.preventDefault();
  }
  const a=target.dataset.action;
- if(busy && !['close-modal','menu'].includes(a)){toast('Tests are running. One moment.');return;}
+ if(busy && !['close-modal','menu'].includes(a)){toast(current?.kind==='code'?'Tests are running. One moment.':'Your answer is being checked. One moment.');return;}
  try{
   switch(a){
    case 'navigate':listFilter='all';await navigate(target.dataset.route);break;
