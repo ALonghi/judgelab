@@ -1,0 +1,15 @@
+ :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:oklch(29% .03 165);background:oklch(98% .008 110);font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;display:grid;place-items:center;padding:32px 24px}
+main{width:100%;max-width:380px;padding:24px 0}
+.brand{display:flex;align-items:center;gap:12px;font-size:24px;font-weight:700;letter-spacing:-1px;margin-bottom:56px}
+h1{font-size:32px;letter-spacing:-1px;line-height:1.2;margin:0 0 12px}
+p{color:oklch(46% .025 160);line-height:1.6;margin:0 0 32px}
+label{display:block;font-size:15px;font-weight:600;margin:24px 0 8px}
+input,button{font:inherit;width:100%;min-height:48px;border-radius:10px}
+input{padding:12px 14px;border:1px solid oklch(79% .02 150);background:oklch(99% .004 110);color:inherit}
+input:focus-visible,button:focus-visible{outline:3px solid oklch(60% .09 150);outline-offset:3px}
+button{margin-top:28px;padding:12px 18px;border:0;background:oklch(38% .055 165);color:oklch(99% .005 110);font-weight:650;cursor:pointer}
+button:hover{background:oklch(43% .055 165)}
+button:active{background:oklch(32% .055 165)}
+.error{padding:12px 14px;margin:0;border:1px solid oklch(78% .08 30);border-radius:10px;background:oklch(96% .02 30);color:oklch(43% .13 30)}

@@ -1466,7 +1466,10 @@ JudgeLab is not intended to be:
 
 An explicitly requested private Fly.io deployment is now supported. The default
 mode stays loopback-only. Hosted mode requires an HTTPS origin and a strong
-password before binding externally; all content/API routes require authentication,
+password before binding externally. Hosted sign-in uses a native HTML credential
+form and a signed Secure/HttpOnly/SameSite session cookie, valid for seven days or
+until restart. Only the login page, its stylesheet and icon are public; practice
+content/API routes require authentication,
 with Host/Origin/CSRF checks retained. It is single-user trusted-code execution,
 not a public or multi-tenant sandbox. Deploy one unprivileged app process with a
 persistent volume; exclude local progress and secrets from the build context.

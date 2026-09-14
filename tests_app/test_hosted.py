@@ -1,4 +1,7 @@
-import base64
+import http.client
+from urllib.parse import urlsplit, urlencode
+import time
+import hmac
 import json
 import threading
 
@@ -30,8 +33,10 @@ def hosted_app(tmp_path):
     server.run_lock = threading.Lock()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    auth = 'Basic ' + base64.b64encode(('learner:'+'x'*32).encode()).decode()
-    yield f'http://127.0.0.1:{server.server_port}', server, {'Host':'lab.example', 'Authorization':auth}
+    base = f'http://127.0.0.1:{server.server_port}'
+    status, _, headers = login_request(base)
+    assert status == 303
+    yield base, server, {'Host':'lab.example', 'Cookie':headers['Set-Cookie'].split(';')[0]}
     server.shutdown()
     server.server_close()
     thread.join(timeout=3)
@@ -41,8 +46,10 @@ def test_every_hosted_asset_and_data_route_requires_login(hosted_app):
     base, _, headers = hosted_app
     for path in ('/', '/app.js', '/api/bootstrap', '/api/export', '/api/lesson/g-score'):
         status, body, response_headers = request(base, path, headers={'Host':'lab.example'})
-        assert status == 401
-        assert 'Basic realm=' in response_headers['WWW-Authenticate']
+        assert status == (200 if path == '/' else 401)
+        assert 'WWW-Authenticate' not in response_headers
+        if path == '/':
+            assert b'autocomplete="current-password"' in body
         assert b'csrf-token' not in body
         assert request(base, path, headers=headers)[0] == 200
 
@@ -50,7 +57,7 @@ def test_every_hosted_asset_and_data_route_requires_login(hosted_app):
 @pytest.mark.parametrize('authorization', ['Basic !!!', 'Bearer anything', 'Basic d3Jvbmc=', ''])
 def test_invalid_authentication_is_rejected(hosted_app, authorization):
     base, _, headers = hosted_app
-    assert request(base, '/api/bootstrap', headers={**headers,'Authorization':authorization})[0] == 401
+    assert request(base, '/api/bootstrap', headers={'Host':'lab.example','Authorization':authorization})[0] == 401
 
 
 def test_hosted_auth_keeps_csrf_origin_and_host_guards(hosted_app):
@@ -68,3 +75,42 @@ def test_hosted_auth_keeps_csrf_origin_and_host_guards(hosted_app):
     assert status == 200
     assert json.loads(body)['hosted'] is True
     assert 'Strict-Transport-Security' in response_headers
+
+
+def login_request(base, password='x'*32, origin='https://lab.example', username='learner'):
+    connection = http.client.HTTPConnection(urlsplit(base).netloc)
+    connection.request('POST', '/login', urlencode({'username':username, 'password':password}),
+                       {'Host':'lab.example', 'Origin':origin,
+                        'Content-Type':'application/x-www-form-urlencoded'})
+    response = connection.getresponse()
+    result = response.status, response.read(), dict(response.headers)
+    connection.close()
+    return result
+
+
+def test_native_login_success_and_failure(hosted_app):
+    base, _, _ = hosted_app
+    status, _, headers = login_request(base)
+    assert status == 303 and headers['Location'] == '/'
+    for flag in ('Secure', 'HttpOnly', 'SameSite=Lax', 'Path=/', 'Max-Age=604800'):
+        assert flag in headers['Set-Cookie']
+    for username, password in [('learner', 'wrong'), ('other', 'x'*32)]:
+        status, body, headers = login_request(base, password=password, username=username)
+        assert status == 401
+        assert b'role="alert"' in body
+        assert b'value="wrong"' not in body
+        assert 'Set-Cookie' not in headers and 'WWW-Authenticate' not in headers
+    assert login_request(base, origin='https://attacker.example')[0] == 403
+    assert login_request(base, origin='null')[0] == 403
+    for path in ('/login', '/login.css', '/favicon.svg'):
+        assert request(base, path, headers={'Host':'lab.example'})[0] == 200
+
+
+def test_session_tampering_expiry_and_restart(hosted_app):
+    base, server, headers = hosted_app
+    assert request(base, '/api/bootstrap', headers={**headers, 'Cookie':headers['Cookie']+'x'})[0] == 401
+    value = str(int(time.time()) - 1) + '.nonce'
+    signature = hmac.new(server.auth_digest, (server.token + ':' + value).encode(), 'sha256').hexdigest()
+    assert request(base, '/api/bootstrap', headers={**headers, 'Cookie':f'__Host-judgelab={value}.{signature}'})[0] == 401
+    server.token = 'restarted-token'
+    assert request(base, '/api/bootstrap', headers=headers)[0] == 401

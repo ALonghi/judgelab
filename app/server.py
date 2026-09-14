@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit, unquote
+from urllib.parse import urlsplit, unquote, parse_qs
 import argparse
-import base64
-import binascii
+from http.cookies import SimpleCookie, CookieError
+import hmac
+import time
 import copy
 import hashlib
 import importlib.metadata
@@ -126,16 +127,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Host','') not in self.allowed_hosts():
             self.respond({'error':'Host is not permitted.'},403)
             return False
-        expected = getattr(self.server, 'auth_digest', None)
-        if expected is not None:
-            authorization = self.headers.get('Authorization', '')
-            try:
-                scheme, encoded = authorization.split(' ', 1)
-                credentials = base64.b64decode(encoded, validate=True) if scheme.lower() == 'basic' else b''
-            except (ValueError, binascii.Error):
-                credentials = b''
-            if not secrets.compare_digest(hashlib.sha256(credentials).digest(), expected):
-                self.respond({'error':'Sign in to this private practice instance.'},401)
+        path = urlsplit(self.path).path
+        public = path in ('/login', '/login.css', '/favicon.svg')
+        if getattr(self.server, 'auth_digest', None) is not None and not public:
+            if not self.authenticated():
+                if self.command == 'GET' and path in ('/', '/index.html'):
+                    self.redirect('/login')
+                else:
+                    self.respond({'error':'Sign in to this private practice instance.'},401)
                 return False
         if write:
             origin=self.headers.get('Origin')
@@ -153,6 +152,62 @@ class Handler(BaseHTTPRequestHandler):
                 return False
         return True
 
+    def session_signature(self, value):
+        return hmac.new(self.server.auth_digest, (self.server.token + ':' + value).encode(), 'sha256').hexdigest()
+
+    def authenticated(self):
+        try:
+            cookies = SimpleCookie(self.headers.get('Cookie', ''))
+            value = cookies['__Host-judgelab'].value
+            expires, nonce, signature = value.split('.')
+            return (int(expires) > time.time() and secrets.compare_digest(
+                signature, self.session_signature(expires + '.' + nonce)))
+        except (CookieError, KeyError, ValueError, TypeError):
+            return False
+
+    def redirect(self, location, cookie=None):
+        self.send_response(303)
+        self.security_headers()
+        self.send_header('Location', location)
+        if cookie:
+            self.send_header('Set-Cookie', cookie)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def login(self):
+        if not self.guard():
+            return
+        if getattr(self.server, 'auth_digest', None) is None:
+            return self.redirect('/')
+        if self.headers.get('Origin') != self.server.public_origin:
+            return self.respond({'error':'Cross-origin requests are rejected.'}, 403)
+        if self.headers.get('Content-Type', '').split(';')[0] != 'application/x-www-form-urlencoded':
+            return self.respond({'error':'Form content is required.'}, 415)
+        try:
+            size = int(self.headers.get('Content-Length', '0'))
+            if not 0 < size <= 8192:
+                raise ValueError()
+            fields = parse_qs(self.rfile.read(size).decode('utf-8'), max_num_fields=4)
+            credentials = fields.get('username', [''])[0] + ':' + fields.get('password', [''])[0]
+        except (ValueError, UnicodeError):
+            return self.respond({'error':'Invalid login form.'}, 400)
+        if not secrets.compare_digest(hashlib.sha256(credentials.encode()).digest(), self.server.auth_digest):
+            return self.login_page(error=True)
+        value = str(int(time.time()) + 7 * 86400) + '.' + secrets.token_urlsafe(24)
+        cookie = f'__Host-judgelab={value}.{self.session_signature(value)}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=604800'
+        return self.redirect('/', cookie)
+
+    def login_page(self, error=False):
+        data = (ROOT/'web'/'login.html').read_text(encoding='utf-8')
+        data = data.replace('<!-- error -->', '<p class="error" role="alert">Username or password is incorrect. Try again.</p>' if error else '')
+        data = data.encode('utf-8')
+        self.send_response(401 if error else 200)
+        self.security_headers()
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def security_headers(self):
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
@@ -160,13 +215,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Referrer-Policy','no-referrer')
         if getattr(self.server, 'public_origin', None):
             self.send_header('Strict-Transport-Security','max-age=31536000')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
 
     def respond(self, value, status=200):
         data=json.dumps(value,ensure_ascii=False).encode('utf-8')
         self.send_response(status)
-        if status == 401:
-            self.send_header('WWW-Authenticate', 'Basic realm="JudgeLab", charset="UTF-8"')
         self.security_headers()
         self.send_header('Content-Type','application/json; charset=utf-8')
         self.send_header('Content-Length',str(len(data)))
@@ -177,6 +230,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.guard():return
         path=unquote(urlsplit(self.path).path)
+        if path=='/login':
+            if getattr(self.server, 'auth_digest', None) is None or self.authenticated():
+                return self.redirect('/')
+            return self.login_page()
         if path=='/api/bootstrap':
             hosted = bool(getattr(self.server, 'public_origin', None))
             return self.respond({'catalog':public_catalog(),'state':self.server.store.snapshot(),
@@ -213,6 +270,8 @@ class Handler(BaseHTTPRequestHandler):
         return value
 
     def do_POST(self):
+        if urlsplit(self.path).path == '/login':
+            return self.login()
         if not self.guard(write=True):return
         path=urlsplit(self.path).path
         try:

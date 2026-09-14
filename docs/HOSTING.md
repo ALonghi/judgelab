@@ -1,7 +1,10 @@
 # Private Fly.io instance
 
-The hosted app is for one trusted learner. Every page, asset and API route requires
-HTTP Basic authentication over HTTPS (username `learner`). It is not a multi-user
+The hosted app is for one trusted learner. The sign-in page uses a standard HTML form over HTTPS (username `learner`), so
+password managers can save and fill credentials. Successful sign-in sets a Secure,
+HttpOnly, SameSite cookie valid for seven days or until the server restarts.
+Practice pages and APIs require this cookie; only the login page and its styling
+and icon are public. It is not a multi-user
 code sandbox: submitted Python can access the instance's practice data and should
 only be code you trust. Never share the login or use this as a public code runner.
 
