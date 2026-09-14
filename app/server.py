@@ -202,17 +202,18 @@ class Handler(BaseHTTPRequestHandler):
         data = data.replace('<!-- error -->', '<p class="error" role="alert">Username or password is incorrect. Try again.</p>' if error else '')
         data = data.encode('utf-8')
         self.send_response(401 if error else 200)
-        self.security_headers()
+        # no-referrer turns native form POST origins into null in browsers.
+        self.security_headers(referrer_policy='same-origin')
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
-    def security_headers(self):
+    def security_headers(self, referrer_policy='no-referrer'):
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('X-Frame-Options','DENY')
-        self.send_header('Referrer-Policy','no-referrer')
+        self.send_header('Referrer-Policy',referrer_policy)
         if getattr(self.server, 'public_origin', None):
             self.send_header('Strict-Transport-Security','max-age=31536000')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")

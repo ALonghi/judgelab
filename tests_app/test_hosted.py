@@ -98,6 +98,7 @@ def test_native_login_success_and_failure(hosted_app):
         status, body, headers = login_request(base, password=password, username=username)
         assert status == 401
         assert b'role="alert"' in body
+        assert headers['Referrer-Policy'] == 'same-origin'
         assert b'value="wrong"' not in body
         assert 'Set-Cookie' not in headers and 'WWW-Authenticate' not in headers
     assert login_request(base, origin='https://attacker.example')[0] == 403
@@ -114,3 +115,15 @@ def test_session_tampering_expiry_and_restart(hosted_app):
     assert request(base, '/api/bootstrap', headers={**headers, 'Cookie':f'__Host-judgelab={value}.{signature}'})[0] == 401
     server.token = 'restarted-token'
     assert request(base, '/api/bootstrap', headers=headers)[0] == 401
+
+
+def test_login_policy_preserves_native_form_origin(hosted_app):
+    base, _, _ = hosted_app
+    status, _, headers = request(base, '/login', headers={'Host':'lab.example'})
+    assert status == 200
+    # Native form POSTs under no-referrer send Origin: null, unlike fetch().
+    policy = headers['Referrer-Policy']
+    browser_origin = 'null' if policy == 'no-referrer' else 'https://lab.example'
+    status, body, _ = login_request(base, origin=browser_origin)
+    assert status == 303, body.decode()
+    assert policy == 'same-origin'
