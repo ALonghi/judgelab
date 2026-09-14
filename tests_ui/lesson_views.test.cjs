@@ -89,16 +89,16 @@ test('scenario and reference content is HTML escaped', () => {
 
 test('optional search recap is accessible but skipped by chapter progression', () => {
   assert.equal(vm.runInContext("findLesson('c-search').optional", context), true);
-  assert.equal(vm.runInContext("byTrack('core').length", context), 10);
-  assert.equal(vm.runInContext("nextFor('c-counts').id", context), 'c-index-build');
+  assert.equal(vm.runInContext("byTrack('core').length", context), 6);
+  assert.equal(vm.runInContext("nextFor('g-search').id", context), 'c-index-build');
   assert.equal(vm.runInContext("nextFor('c-search').id", context), 'c-index-build');
   const html = vm.runInContext("state.bookmarks=[]; current=findLesson('c-search'); lessonHeader()", context);
   assert.ok(html.includes('OPTIONAL RECAP'));
-  assert.ok(!html.includes('03 / 10'));
+  assert.ok(!html.includes('01 / 06'));
   assert.ok(html.includes('href="#lesson/c-index-build"'));
   assert.ok(vm.runInContext("row(findLesson('c-search'))", context).includes('href="#lesson/c-search"'));
   const indexHeader = vm.runInContext("current=findLesson('c-index-build'); lessonHeader()", context);
-  assert.ok(indexHeader.includes('03 / 10'));
+  assert.ok(indexHeader.includes('01 / 06'));
 });
 
 test('chapter lists separate recaps and home continuation skips them', () => {
@@ -111,9 +111,9 @@ test('chapter lists separate recaps and home continuation skips them', () => {
   assert.equal((html.match(/data-id="c-search"/g) || []).length, 1);
   vm.runInContext('for(const l of requiredLessons())state.completed[l.id]={xp:1}; delete state.completed["c-index-build"]; renderHome()', context);
   assert.ok(elements['#main'].innerHTML.includes('data-id="c-index-build"'));
-  assert.ok(elements['#main'].innerHTML.includes('9 of 10 complete'));
+  assert.ok(elements['#main'].innerHTML.includes('5 of 6 complete'));
   vm.runInContext('state.completed["c-index-build"]={xp:1}; renderHome()', context);
-  assert.ok(elements['#main'].innerHTML.includes('10 of 10 complete'));
+  assert.ok(elements['#main'].innerHTML.includes('6 of 6 complete'));
   assert.ok(!elements['#main'].innerHTML.includes('data-id="c-search"'));
   vm.runInContext('state.completed={}', context);
 });
@@ -132,7 +132,7 @@ test('walkthroughs explain the approach before the example and implementation', 
   assert.ok(overview > html.indexOf('aria-label="Production context"'));
   assert.ok(overview < html.indexOf('class="walk-example"'));
   assert.ok(html.indexOf('Full-text search means') < html.indexOf('Build once, query many times'));
-  assert.ok(html.includes('does not implement streaming upload or PDF extraction'));
+  assert.ok(html.includes('PDF/OCR extraction is not implemented'));
   context.overviewFixture = structuredClone(catalog.lessons[0]);
   context.overviewFixture.overview = [{heading:'<script>bad()</script>',paragraphs:['<img src=x onerror=bad()>']}];
   const escaped = vm.runInContext('walkthroughOverview(overviewFixture)', context);
@@ -259,4 +259,40 @@ test('decision introductions precede the question and stay outside its disclosur
     assert.ok(html.indexOf('<p>') < html.indexOf('<details'), lesson.id);
     assert.ok(html.indexOf('</p>') < html.indexOf('<summary'), lesson.id);
   }
+});
+
+
+test('home follows curriculum order for fresh, returning and completed learners', () => {
+  const elements = {};
+  context.document.querySelector = selector => elements[selector] ||= {innerHTML: ''};
+  context.document.body = {classList: {remove() {}, toggle() {}}};
+  const primary = () => elements['#main'].innerHTML.match(/<div class="hero-actions">([\s\S]*?)<\/div>/)[1];
+  vm.runInContext('state={completed:{},results:{},reviews:{},bookmarks:[],activity:[]}; renderHome()', context);
+  assert.match(primary(), /data-id="q-sets"/);
+  assert.match(primary(), /Start learning/);
+  vm.runInContext('for(const l of byTrack("basics"))state.completed[l.id]={xp:1}; renderHome()', context);
+  assert.match(primary(), /data-id="p-fastapi"/);
+  assert.match(primary(), /Continue learning/);
+  // Completing a later chapter must not cause an earlier missing API to be skipped.
+  vm.runInContext('for(const l of byTrack("guided"))state.completed[l.id]={xp:1}; renderHome()', context);
+  assert.match(primary(), /data-id="p-fastapi"/);
+  vm.runInContext('for(const l of requiredLessons())state.completed[l.id]={xp:1}; renderHome()', context);
+  assert.match(primary(), /Review from the start/);
+  assert.match(primary(), /data-id="q-sets"/);
+  vm.runInContext('state.completed={}', context);
+});
+
+test('continue traverses all chapters, skips recaps and completed activities', () => {
+  const required = catalog.lessons.filter(l => !l.optional);
+  vm.runInContext('state.completed={}', context);
+  for (let i=0; i<required.length-1; i++) {
+    context.currentId = required[i].id;
+    const next = vm.runInContext('state.completed[currentId]={xp:1}; nextFor(currentId).id', context);
+    assert.equal(next, required[i+1].id, `after ${required[i].id}`);
+  }
+  vm.runInContext('state.completed={"g-score":{xp:1}}', context);
+  assert.equal(vm.runInContext('nextFor("q-score").id', context), 'q-tenants');
+  vm.runInContext('for(const l of requiredLessons())state.completed[l.id]={xp:1}; delete state.completed["p-fastapi"]', context);
+  assert.equal(vm.runInContext('nextFor("s-chat").id', context), 'p-fastapi');
+  vm.runInContext('state.completed={}', context);
 });

@@ -176,5 +176,178 @@
       ],
       "labels": [{"x":20,"y":30,"text":"BACKGROUND INDEX UPDATE"}]
     }
+  },
+  "large-import": {
+    "title": "Large upload and background search flow",
+    "summary": "The API owns upload authorization and status. Clients send bytes to original storage; verified completion schedules extraction and indexing. Queries read derived text with current access checks.",
+    "note": "The diagram is an architecture proposal. Coding exercises implement local transfer, batch scheduling and UTF-8 extraction. The supplied SQLite demo uses one transaction per revision; it does not implement cloud sessions, queues, OCR or production staging. For download-only storage, omit the extraction/index branch. Reconcile completed objects missing metadata, and expire abandoned parts.",
+    "graph": {
+      "title": "Byte transfer, durable work and the query path",
+      "width": 1100,
+      "height": 640,
+      "description": "A client requests a scoped upload session from the API and transfers parts to original storage. The API verifies completed storage and commits metadata with pending work. Workers consume pending jobs and read original bytes, then update the search index. Queries combine index matches with current authorization in metadata before returning content.",
+      "nodes": [
+        {
+          "x": 20,
+          "y": 40,
+          "w": 170,
+          "h": 70,
+          "shape": "terminal",
+          "lines": [
+            "Client / batch"
+          ]
+        },
+        {
+          "x": 320,
+          "y": 40,
+          "w": 210,
+          "h": 70,
+          "shape": "process",
+          "lines": [
+            "API: sessions,",
+            "verify completion"
+          ]
+        },
+        {
+          "x": 800,
+          "y": 25,
+          "w": 250,
+          "h": 100,
+          "shape": "database",
+          "lines": [
+            "Original objects",
+            "Resumable parts"
+          ]
+        },
+        {
+          "x": 320,
+          "y": 220,
+          "w": 210,
+          "h": 100,
+          "shape": "database",
+          "lines": [
+            "Metadata +",
+            "pending work",
+            "Current access"
+          ]
+        },
+        {
+          "x": 800,
+          "y": 230,
+          "w": 250,
+          "h": 80,
+          "shape": "process",
+          "lines": [
+            "Workers: extract / OCR",
+            "Stage + publish revision"
+          ]
+        },
+        {
+          "x": 800,
+          "y": 430,
+          "w": 250,
+          "h": 95,
+          "shape": "database",
+          "lines": [
+            "Full-text index",
+            "Derived sections"
+          ]
+        },
+        {
+          "x": 20,
+          "y": 440,
+          "w": 170,
+          "h": 70,
+          "shape": "terminal",
+          "lines": [
+            "Query request"
+          ]
+        },
+        {
+          "x": 320,
+          "y": 435,
+          "w": 210,
+          "h": 80,
+          "shape": "process",
+          "lines": [
+            "Tenant query",
+            "Current access check"
+          ]
+        },
+        {
+          "x": 320,
+          "y": 570,
+          "w": 210,
+          "h": 55,
+          "shape": "terminal",
+          "lines": [
+            "Permitted results"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "path": "M190 75 H320",
+          "label": "create / finalize",
+          "x": 252,
+          "y": 48
+        },
+        {
+          "path": "M105 110 V160 H925 V125",
+          "label": "upload bytes with scoped permission",
+          "x": 530,
+          "y": 150
+        },
+        {
+          "path": "M530 80 H800",
+          "label": "verify stored object",
+          "x": 665,
+          "y": 68
+        },
+        {
+          "path": "M425 110 V220",
+          "label": "commit",
+          "x": 456,
+          "y": 199
+        },
+        {
+          "path": "M530 270 H800",
+          "label": "durable relay / jobs",
+          "x": 663,
+          "y": 258
+        },
+        {
+          "path": "M950 125 V230",
+          "label": "read bytes",
+          "x": 999,
+          "y": 192
+        },
+        {
+          "path": "M925 310 V430",
+          "label": "revision guard",
+          "x": 987,
+          "y": 380
+        },
+        {
+          "path": "M190 475 H320"
+        },
+        {
+          "path": "M800 478 H530",
+          "label": "scoped matches",
+          "x": 663,
+          "y": 465
+        },
+        {
+          "path": "M425 320 V435",
+          "label": "current policy",
+          "x": 481,
+          "y": 385
+        },
+        {
+          "path": "M425 515 V570"
+        }
+      ],
+      "labels": []
+    }
   }
 }

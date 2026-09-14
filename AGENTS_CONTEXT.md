@@ -230,6 +230,55 @@ Important conceptual concerns include:
 
 ---
 
+# Curriculum order and upload progression
+
+The full ordered curriculum is recorded in docs/CURRICULUM.md. Use one canonical
+lesson order in app/catalog.json for chapter lists, the home action and automatic
+continuation. Home selects the first unfinished required activity; Continue selects
+the next unfinished required activity after the current one, falling back to earlier
+unfinished work. Neither path should prioritize a hard-coded chapter or optional
+recap. After everything is complete, the review action returns to the start.
+
+The seven chapters are Python data handling, APIs & document state, Search rules
+& access, Indexes/full-text search/context, Reliability & async, Large uploads,
+and Architecture. Start with sets and record-processing warm-ups. The API chapter
+contains `p-fastapi`, `p-ingest`, `q-version`, `c-events` in that order: HTTP, local
+idempotent updates, the local-counter/source-revision distinction, then out-of-order
+source events. Keep those different version contracts explicit.
+
+Interleave each search-rule quiz with its guided coding checkpoint. Then teach
+manual index construction/query, built-in FTS, chunking and context. The optional
+`c-search` recap remains available separately. In async, teach basic scheduling,
+bounded fetching and cancellation before federated retrieval; stream parsing
+precedes provider fallback. The final architecture sequence covers API ownership,
+durable ingestion, large imports, search scale, latency and grounded answers.
+Preserve every activity ID, workspace and acceptance contract when reordering.
+Declare useful learning prerequisites in `depends`; each must appear earlier in
+the path and must not depend on an optional recap. Activities remain freely openable.
+
+The `uploads` chapter follows async reliability and contains `u-upload`, `u-batch`
+and `u-extract` in `packs/uploads`. They implement resumable contiguous-offset
+byte transfer, a fixed worker pool, and incremental UTF-8 line extraction. Supplied
+local storage and a SQLite FTS5 revision transaction connect transfer/extraction
+to actual search. The line extractor rejects lines over a configured limit; it is
+not a PDF/OCR parser or a general solution for unbroken text. The adapter models
+one immutable source and one writer; it does not implement cloud multipart
+manifests or a crash-safe upload session. The batch report retains O(files) metadata.
+Upload acceptance tests allow any positive read size up to `part_size` and compare
+byte content, not object identity. Bound unacknowledged bytes rather than requiring one read per uploaded part.
+Lost-reply and truncated-source checks must preserve acknowledged prefixes without
+assuming a fixed part length or requiring incomplete buffered data to be uploaded.
+
+`s-large-import` compares download-only storage with asynchronous full-text search
+for a synthetic legal-records portal. Its 5-million-file tenant, low daily edit
+rate, large imports and proposed 15-minute ordinary-text freshness target are
+assumptions to validate. OCR needs a separate measured target. Revocation requires
+prompt denial despite delayed index updates. Teach object/metadata reconciliation,
+per-file status, capacity for initial imports/rebuilds, tenant fairness and current
+access on snippets/downloads. Production staging, durable jobs and permission
+checks are architecture discussion; the trusted local demo does not implement
+those services. Preserve these distinctions in teaching copy and tests.
+
 # Existing exercise themes
 
 The course was designed around several groups of exercises.
@@ -431,7 +480,8 @@ saved work and progress remain associated with the original activities.
 the same acceptance contract. Preserve its ID, workspace and saved progress, but
 exclude optional activities from chapter numbering, chapter completion and
 automatic continuation. Keep recaps accessible from their chapter and Code arena.
-The required backend path moves from category counts to index construction.
+The required index chapter starts with index construction after guided search;
+category counts now belong to the earlier Python data-handling chapter.
 
 `c-fts` follows the manual index-query checkpoint with a real SQLite FTS5 query
 exercise in `packs/fts`. The caller selects one customer's database. Setup and
@@ -447,6 +497,7 @@ Never equate a generator with indexed retrieval, an in-memory postings dictionar
 with bounded memory, or a SQL LIMIT with bounded total database work. These
 exercises retain the toy title/body score, not BM25. Document construction still
 holds one source body; huge individual files need a separate streaming extractor.
+The uploads pack now provides one for bounded UTF-8 lines; it does not parse PDFs or perform OCR.
 
 The project should teach the application logic around retrieval-augmented generation without requiring actual LLM API calls.
 
@@ -917,7 +968,7 @@ permissions -> rank -> limit
 
 # Architecture discussion mode
 
-The five architecture activities extend the coding exercises with design questions.
+The six architecture activities extend the coding exercises with design questions.
 They use written answers, keyword cues, self-review rubrics and follow-up prompts.
 These checks do not evaluate semantic correctness.
 

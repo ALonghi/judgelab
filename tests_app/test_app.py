@@ -12,11 +12,11 @@ from app.server import Store, LabHTTPServer, Handler, public_catalog
 
 
 def test_catalog_has_expected_modes_and_unique_ids():
-    assert len(LESSONS)==33
-    assert len({x['id'] for x in CATALOG['lessons']})==33
-    assert sum(x['kind']=='code' for x in LESSONS.values())==20
+    assert len(LESSONS)==37
+    assert len({x['id'] for x in CATALOG['lessons']})==37
+    assert sum(x['kind']=='code' for x in LESSONS.values())==23
     assert sum(x['kind']=='quiz' for x in LESSONS.values())==8
-    assert sum(x['kind']=='discussion' for x in LESSONS.values())==5
+    assert sum(x['kind']=='discussion' for x in LESSONS.values())==6
 
 
 def test_all_code_assets_exist_and_have_test_counts():
@@ -67,7 +67,7 @@ def test_shared_system_flows_are_well_formed_and_referenced():
     flows = CATALOG['flows']
     assert set(flows) == {
         'search-index', 'version-guard', 'bounded-fanout', 'rag-context',
-        'durable-ingestion',
+        'durable-ingestion', 'large-import',
     }
     referenced = set()
     for lesson in LESSONS.values():
@@ -114,7 +114,7 @@ def test_index_lesson_explains_the_production_choice_before_the_row_model():
     decision = lesson['implementation']['decisions'][0]
     assert len(decision['branches']) == 3
     assert 'ordinary SQLite rows' in decision['lead_in']
-    assert 'current course does not implement streaming upload' in ' '.join(
+    assert 'uploads pack implements bounded byte transfer' in ' '.join(
         lesson['strategy']['caveats']
     )
     flow = CATALOG['flows']['search-index']
@@ -297,7 +297,7 @@ def test_studio_removed_but_architecture_review_still_works(http_app):
     base, _ = http_app
     headers = {'X-Lab-Token': 'test-token'}
     assert {t['id'] for t in CATALOG['tracks']} == {
-        'basics', 'guided', 'core', 'async', 'api', 'architecture'}
+        'basics', 'guided', 'core', 'async', 'api', 'uploads', 'architecture'}
     assert not any(l['id'].startswith('i-') for l in LESSONS.values())
     assert request(base, '/api/lesson/i-intro')[0] == 404
     answer = 'Measure query latency and volume, index eligible documents, and enforce tenant permissions before ranking. Track cache invalidation after access changes and benchmark the trade-offs under representative load.'

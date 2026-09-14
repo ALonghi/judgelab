@@ -63,22 +63,34 @@ hosted mode is still for one trusted learner, not public code execution.
 | Mode | Activities | What is validated |
 |---|---:|---|
 | Quick checks | 8 | Fixed answer keys and explanations of the practice contracts |
-| Coding missions | 20 | Real pytest acceptance cases, run against your submitted Python |
-| Architecture discussions | 5 | Word/keyword structure cues, followed by YOUR visible rubric self-review |
+| Coding missions | 23 | Real pytest acceptance cases, run against your submitted Python |
+| Architecture discussions | 6 | Word/keyword structure cues, followed by YOUR visible rubric self-review |
 
-The six chapters are:
+The seven chapters are:
 
-1. **Python, without the fog:** five checks on sets, scoring, tenant boundaries,
-   filters and top-K ordering.
-2. **Build your first search engine:** four guided checkpoints sharing one file.
-3. **The backend coding path:** latest versions, category counts, disk-backed
-   indexing, indexed scoring, built-in full-text search, chunking, context selection and
-   revision-aware ingestion. Context/version quizzes sit beside their topics.
-   Unassisted search remains available as an optional recap, outside chapter progression.
-4. **Reliability & async lab:** refactoring, bounded fetching, cancellation,
-   federated search, incremental stream parsing and LLM-style fallback.
-5. **FastAPI & backend extras:** the original endpoint and idempotent ingestion.
-6. **Think beyond the function:** five architecture discussions from V2.
+1. **Python data handling** (3 activities): sets, latest records and category counts.
+2. **APIs & document state** (4): FastAPI, idempotent ingestion, a versioning check,
+   and out-of-order updates/deletions.
+3. **Search rules & access** (8): a quiz immediately before each of four guided
+   coding checkpoints for scoring, permissions, categories and complete search.
+4. **Indexes, full-text search & context** (6, plus an optional recap): disk-backed
+   index construction/query, real SQLite FTS5, chunking, a context-budget check
+   and evidence selection.
+5. **Reliability & async lab** (6): refactoring, bounded fetching, cancellation,
+   federated retrieval, stream parsing and provider fallback.
+6. **Large uploads & searchable files** (3): resumable transfer, bounded batch
+   uploads and streaming UTF-8 extraction into a supplied FTS5 demo.
+7. **Think beyond the function** (6): API ownership, durable ingestion, large
+   imports, search scale, latency and grounded answers.
+
+See [the complete activity order and rationale](docs/CURRICULUM.md). Home and
+Continue follow that order and skip optional recaps and completed activities.
+Every activity remains directly accessible. Existing saved work retains its IDs.
+
+The [large uploads pack](packs/uploads/README.md) uses synthetic streams and local
+storage. It connects uploaded UTF-8 text to a supplied SQLite FTS5 revision demo.
+Cloud multipart protocols, PDF/OCR, durable worker infrastructure and large-tenant
+capacity are architecture topics, not simulated production capabilities.
 
 ### A good first session
 
@@ -98,20 +110,25 @@ how ordinary edits and deletions update the text index. This is a separate pack
 with all-word matching and default FTS5 ranking, not the manual pack's 3/1 score.
 
 
-Choose **Start guided search** on the homepage.
+Choose **Start learning** on a fresh homepage. It opens the sets quick check;
+Continue then takes you to the latest-record and category-count coding warm-ups.
+For returning learners, **Continue learning** selects the first unfinished required
+activity in the curriculum.
 
-Read **Understand**, open **Write code**, and change `score_document` only.
-Click **Run tests** (or **Ctrl+Enter / Cmd+Enter** in the editor). The first run asks
-you to acknowledge that this executes code locally.
+In a coding activity, read **Problem**, consult **Walkthrough** or **Knowledge
+base** as needed, then open **Write code**. Implement the function named in the
+activity's test scope. Click **Run tests** (or **Ctrl+Enter / Cmd+Enter** in the
+editor). The first run asks you to acknowledge that this executes code locally.
 
-If a case fails, open it under **Test feedback**. You will see the real assertion,
-a rule-based coaching cue, and the raw pytest output. Correct your code and rerun.
-Hints appear one at a time. After at least one submission, **Compare a reference
-approach** shows one working solution without replacing your work.
+If a case fails, inspect the assertion, coaching cue and raw pytest output in the
+feedback. Correct your code and rerun. Hints appear one at a time. After at least
+one submission, **Compare a reference approach** shows one working solution
+without replacing your work.
 
-Continue to permissions, categories and full search. The earlier functions remain
-in the same shared file. Stage four reruns all guided stages plus the original
-standalone search acceptance tests.
+For a standalone guided-search session, open **Search rules & access** from the
+chapter list. Its scoring quiz precedes the `score_document` checkpoint. Continue
+through permissions, categories and full search; the four coding checkpoints share
+one file, and the final checkpoint validates their integration.
 
 ### Coding editor
 
