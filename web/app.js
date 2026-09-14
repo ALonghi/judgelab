@@ -355,7 +355,7 @@ function productionDecision(lesson){
 }
 function productionContext(lesson){
  const strategy=lesson.strategy;
- return `<section class="production-context" aria-label="Production context"><p class="section-kicker">Production context</p><h2>Where this appears in a real system</h2><p class="production-use-case">${escapeHTML(strategy.use_case)}</p><div class="production-grid"><div><h3>Mechanism</h3><p>${escapeHTML(strategy.mechanism)}</p></div><div><h3>Production direction</h3><p>${escapeHTML(strategy.proposal)}</p></div></div>${productionDecision(lesson)}<details class="production-limits"><summary>Limits and reasons to change the design</summary><ul class="reference-list">${strategy.caveats.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details></section>`;
+ return `<section class="production-context" aria-label="Production context"><div class="production-explanation"><p class="section-kicker">Production context</p><h2>Where this appears in a real system</h2><p class="production-use-case">${escapeHTML(strategy.use_case)}</p><div class="production-grid"><div><h3>Mechanism</h3><p>${escapeHTML(strategy.mechanism)}</p></div><div><h3>Production direction</h3><p>${escapeHTML(strategy.proposal)}</p></div></div></div><div class="production-considerations">${productionDecision(lesson)}<details class="production-limits"><summary>Limits and reasons to change the design</summary><ul class="reference-list">${strategy.caveats.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details></div></section>`;
 }
 function lessonFlow(lesson){return lesson.flow_ref?catalog.flows?.[lesson.flow_ref]||null:null;}
 function walkthroughOverview(lesson){

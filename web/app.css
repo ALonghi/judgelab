@@ -173,3 +173,84 @@ a.inline-link{text-decoration:underline}
 .production-limits .reference-list li+li{margin-top:12px}
 .exercise-contract{margin:-8px 0 25px;padding:14px 16px;background:var(--soft);border:1px solid var(--line);border-radius:8px;font-size:15px!important}
 @media(max-width:700px){.production-grid{grid-template-columns:1fr}.production-grid>div{padding:18px 0}.production-grid>div+div{padding-left:0;border-left:0;border-top:1px solid var(--line)}.production-use-case{font-size:17px!important}}
+
+/* Walkthrough workspace: compare context, examples and implementation on desktop. */
+.lesson-walkthrough,
+.lesson-walkthrough:has(.lesson-flow){
+  --ink:oklch(24% .008 155);
+  --muted:oklch(42% .008 155);
+  --line:oklch(82% .008 155);
+  --soft:oklch(95% .008 155);
+  max-width:none;
+  color:var(--ink);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:32px;
+  align-items:start;
+}
+.lesson-walkthrough>*,.production-context>div{min-width:0}
+.lesson-walkthrough>.production-context,
+.lesson-walkthrough>.walk-overview,
+.lesson-walkthrough>.practice-check,
+.lesson-walkthrough>.scenario-actions{grid-column:1/-1}
+.lesson-walkthrough h2{font-size:25px;line-height:1.3;letter-spacing:-.025em;margin:0 0 24px}
+.lesson-walkthrough h3{font-size:18px;line-height:1.4;letter-spacing:-.015em}
+.lesson-walkthrough p,.lesson-walkthrough li{line-height:1.7}
+.lesson-walkthrough .section-kicker{font-size:12px!important;color:var(--muted);letter-spacing:.09em;margin-bottom:12px}
+.lesson-walkthrough>.production-context{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+  gap:32px;
+  padding:32px;
+  margin:0;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:oklch(99% .003 155);
+}
+.production-explanation>h2{margin-bottom:16px}
+.production-explanation .production-use-case{font-size:18px!important;margin-bottom:24px}
+.production-explanation .production-grid{display:block;margin:0;border:0}
+.production-explanation .production-grid>div{padding:20px 0 0;border:0;border-top:1px solid var(--line)}
+.production-explanation .production-grid>div+div{margin-top:20px}
+.production-explanation .production-grid h3{margin:0 0 8px}
+.production-explanation .production-grid p{color:var(--ink);font-size:16px!important}
+.production-considerations{padding-left:32px;border-left:1px solid var(--line)}
+.production-considerations .decision-introduction>p{margin:0 0 24px;font-size:16px}
+.lesson-walkthrough .design-decision,
+.lesson-walkthrough .production-limits{background:var(--soft);border:1px solid var(--line);border-radius:8px;margin:12px 0 0;padding:0 20px}
+.lesson-walkthrough .design-decision summary{position:relative;padding-right:24px}
+.lesson-walkthrough .design-decision summary:after{content:'+';position:absolute;right:0;top:24px;font-size:22px}
+.lesson-walkthrough .design-decision[open] summary:after{content:'−'}
+.lesson-walkthrough .design-decision summary span{font-size:11px;color:var(--muted);letter-spacing:.07em}
+.lesson-walkthrough .design-decision[open],
+.lesson-walkthrough .production-limits[open]{padding-bottom:20px}
+.lesson-walkthrough>.walk-example,
+.lesson-walkthrough>.walk-implementation,
+.lesson-walkthrough:has(.lesson-flow)>.walk-example,
+.lesson-walkthrough:has(.lesson-flow)>.walk-implementation{max-width:none;margin:0;padding:28px;border:1px solid var(--line);border-radius:12px}
+.lesson-walkthrough>.walk-example{background:oklch(94% .008 155)}
+.lesson-walkthrough>.walk-implementation{background:oklch(99% .003 155)}
+.lesson-walkthrough .learning-reasoning{padding-left:26px}
+.lesson-walkthrough .learning-reasoning li{padding-left:10px;padding-bottom:18px}
+.lesson-walkthrough .learning-reasoning li+li{border-top:1px solid var(--line);padding-top:18px;margin-top:0}
+.lesson-walkthrough .learning-reasoning li:last-child{padding-bottom:0}
+.lesson-walkthrough .learning-reasoning li::marker{color:var(--ink)}
+.lesson-walkthrough .exercise-contract{background:transparent;border:0;border-radius:0;border-bottom:1px solid var(--line);padding:0 0 24px;margin:0 0 24px;font-size:17px!important;font-weight:550}
+.lesson-walkthrough .implementation-guide h3{margin:28px 0 12px}
+.lesson-walkthrough>.walk-overview{margin:0;padding:0 0 28px;border-bottom:1px solid var(--line)}
+.lesson-walkthrough>.scenario-actions{margin:0;padding-top:8px}
+.lesson-walkthrough>.practice-check{margin:0}
+@media(max-width:1199px){
+  .lesson-walkthrough,.lesson-walkthrough:has(.lesson-flow){grid-template-columns:minmax(0,1fr)}
+  .lesson-walkthrough>.production-context{grid-template-columns:minmax(0,1fr)}
+  .production-considerations{padding:24px 0 0;border-left:0;border-top:1px solid var(--line)}
+}
+@media(max-width:700px){
+  .lesson-walkthrough,.lesson-walkthrough:has(.lesson-flow){gap:24px}
+  .lesson-walkthrough>.production-context,
+  .lesson-walkthrough>.walk-example,
+  .lesson-walkthrough>.walk-implementation,
+  .lesson-walkthrough:has(.lesson-flow)>.walk-example,
+  .lesson-walkthrough:has(.lesson-flow)>.walk-implementation{padding:20px}
+  .lesson-walkthrough h2{font-size:23px}
+}
