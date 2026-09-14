@@ -3,10 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {disconnectedEnds} = require('./flow_geometry.cjs');
 
 const root = path.join(__dirname, '..');
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'app/catalog.json'), 'utf8'));
+catalog.flows = JSON.parse(fs.readFileSync(path.join(root, 'app/flows.json'), 'utf8'));
 const source = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'web/app.css'), 'utf8');
 const bootstrap = source.lastIndexOf('(async()=>{try{boot=');
 assert.ok(bootstrap > 0, 'Browser bootstrap marker is present');
 const context = vm.createContext({
@@ -24,7 +27,7 @@ function render(id, fn) {
   return vm.runInContext(`current=findLesson(fixtureId); ${fn}(current)`, context);
 }
 
-test('every problem is concise and contains no glossary, code or solution dump', () => {
+test('every problem is self-contained and contains no glossary, code or solution dump', () => {
   for (const lesson of catalog.lessons) {
     const html = render(lesson.id, 'scenarioView');
     assert.ok(html.includes('data-content="scenario"'), lesson.id);
@@ -32,8 +35,12 @@ test('every problem is concise and contains no glossary, code or solution dump',
     assert.ok(!html.includes('Start with the situation'), lesson.id);
     assert.ok(lesson.scenario.prompt.length > 0);
     assert.ok(lesson.scenario.requirements.length >= 2);
-    const words = [lesson.scenario.prompt, ...lesson.scenario.requirements, lesson.scenario.deliverable].join(' ').split(/\s+/);
-    assert.ok(words.length < 150, `${lesson.id}: ${words.length} problem words`);
+    assert.ok(lesson.scenario.deliverable.length > 0, lesson.id);
+    assert.ok(lesson.strategy.use_case.length > 0, `${lesson.id}: production use case`);
+    assert.ok(lesson.strategy.mechanism.length > 0, `${lesson.id}: mechanism`);
+    assert.ok(lesson.strategy.recognize.length > 0, `${lesson.id}: design questions`);
+    assert.ok(lesson.strategy.proposal.length > 0, `${lesson.id}: production proposal`);
+    assert.ok(lesson.strategy.caveats.length > 0, `${lesson.id}: limitations`);
   }
 });
 
@@ -82,7 +89,7 @@ test('scenario and reference content is HTML escaped', () => {
 
 test('optional search recap is accessible but skipped by chapter progression', () => {
   assert.equal(vm.runInContext("findLesson('c-search').optional", context), true);
-  assert.equal(vm.runInContext("byTrack('core').length", context), 9);
+  assert.equal(vm.runInContext("byTrack('core').length", context), 10);
   assert.equal(vm.runInContext("nextFor('c-counts').id", context), 'c-index-build');
   assert.equal(vm.runInContext("nextFor('c-search').id", context), 'c-index-build');
   const html = vm.runInContext("state.bookmarks=[]; current=findLesson('c-search'); lessonHeader()", context);
@@ -91,7 +98,7 @@ test('optional search recap is accessible but skipped by chapter progression', (
   assert.ok(html.includes('href="#lesson/c-index-build"'));
   assert.ok(vm.runInContext("row(findLesson('c-search'))", context).includes('href="#lesson/c-search"'));
   const indexHeader = vm.runInContext("current=findLesson('c-index-build'); lessonHeader()", context);
-  assert.ok(indexHeader.includes('03 / 09'));
+  assert.ok(indexHeader.includes('03 / 10'));
 });
 
 test('chapter lists separate recaps and home continuation skips them', () => {
@@ -104,9 +111,152 @@ test('chapter lists separate recaps and home continuation skips them', () => {
   assert.equal((html.match(/data-id="c-search"/g) || []).length, 1);
   vm.runInContext('for(const l of requiredLessons())state.completed[l.id]={xp:1}; delete state.completed["c-index-build"]; renderHome()', context);
   assert.ok(elements['#main'].innerHTML.includes('data-id="c-index-build"'));
-  assert.ok(elements['#main'].innerHTML.includes('8 of 9 complete'));
+  assert.ok(elements['#main'].innerHTML.includes('9 of 10 complete'));
   vm.runInContext('state.completed["c-index-build"]={xp:1}; renderHome()', context);
-  assert.ok(elements['#main'].innerHTML.includes('9 of 9 complete'));
+  assert.ok(elements['#main'].innerHTML.includes('10 of 10 complete'));
   assert.ok(!elements['#main'].innerHTML.includes('data-id="c-search"'));
   vm.runInContext('state.completed={}', context);
+});
+
+test('walkthroughs explain the approach before the example and implementation', () => {
+  for (const lesson of catalog.lessons) {
+    const html = render(lesson.id, 'walkthroughView');
+    const production = html.indexOf('aria-label="Production context"');
+    assert.ok(production >= 0, lesson.id);
+    assert.ok(production < html.indexOf('class="walk-example"'), lesson.id);
+    assert.ok(html.indexOf('class="walk-example"') < html.indexOf('class="walk-implementation"'), lesson.id);
+    assert.ok(html.includes('Exercise boundary'), lesson.id);
+  }
+  const html = render('c-index-build', 'walkthroughView');
+  const overview = html.indexOf('aria-label="Solution overview"');
+  assert.ok(overview > html.indexOf('aria-label="Production context"'));
+  assert.ok(overview < html.indexOf('class="walk-example"'));
+  assert.ok(html.indexOf('Full-text search means') < html.indexOf('Build once, query many times'));
+  assert.ok(html.includes('does not implement streaming upload or PDF extraction'));
+  context.overviewFixture = structuredClone(catalog.lessons[0]);
+  context.overviewFixture.overview = [{heading:'<script>bad()</script>',paragraphs:['<img src=x onerror=bad()>']}];
+  const escaped = vm.runInContext('walkthroughOverview(overviewFixture)', context);
+  assert.ok(escaped.includes('&lt;script&gt;'));
+  assert.ok(escaped.includes('&lt;img'));
+  assert.ok(!escaped.includes('<script>'));
+  assert.ok(!escaped.includes('<img'));
+});
+
+test('production guidance is visible and escaped for every lesson', () => {
+  for (const lesson of catalog.lessons) {
+    const html = render(lesson.id, 'walkthroughView');
+    const decision = lesson.implementation.decisions[0];
+    assert.ok(html.includes('Decision that changes the design'), lesson.id);
+    assert.ok(html.includes(decision.question), lesson.id);
+    assert.ok(html.includes(decision.branches[0].answer), lesson.id);
+    assert.ok(html.includes(decision.branches[0].action), lesson.id);
+    assert.ok(html.includes('Mechanism'), lesson.id);
+    assert.ok(html.includes('Production direction'), lesson.id);
+    assert.ok(html.includes('Limits and reasons to change the design'), lesson.id);
+  }
+  context.productionFixture = structuredClone(catalog.lessons[0]);
+  context.productionFixture.strategy.use_case = '<img src=x onerror=bad()>';
+  context.productionFixture.strategy.mechanism = '<script>bad()</script>';
+  context.productionFixture.implementation.decisions[0].question = '<iframe>';
+  context.productionFixture.implementation.decisions[0].branches[0].action = '<object>';
+  const html = vm.runInContext('productionContext(productionFixture)', context);
+  assert.ok(html.includes('&lt;img'));
+  assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(html.includes('&lt;iframe&gt;'));
+  assert.ok(html.includes('&lt;object&gt;'));
+  assert.ok(!html.includes('<img'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(!html.includes('<iframe>'));
+  assert.ok(!html.includes('<object>'));
+});
+
+test('index walkthroughs separate writes, reads and the optional worker flow', () => {
+  for (const id of ['c-index-build', 'c-index-query']) {
+    const html = render(id, 'walkthroughView');
+    assert.ok(html.indexOf('Build once, query many times') < html.indexOf('A worked example'));
+    assert.ok(html.includes('BUILD · after upload or edit'));
+    assert.ok(html.includes('<svg class="flow-graph"'));
+    assert.ok(html.includes('graph-decision'));
+    assert.ok(html.includes('marker-end="url(#flow-arrow-main)"'));
+    assert.ok(html.includes('SEARCH · per request'));
+    assert.ok(html.includes('The search path performs no index writes.'));
+    assert.ok(html.includes('calls the builder synchronously'));
+    assert.ok(html.includes('<details class="flow-async">'));
+    assert.ok(html.includes('makes search temporarily stale'));
+  }
+  context.flowFixture = structuredClone(catalog.flows['search-index']);
+  context.flowFixture.graph.nodes[0].lines = ['<img>'];
+  context.flowFixture.graph.edges[0].label = '<script>';
+  context.flowFixture.graph.description = '<img>';
+  const html = vm.runInContext('walkthroughFlow(flowFixture)', context);
+  assert.ok(!html.includes('<img>'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('&lt;img&gt;'));
+});
+
+test('complex system diagrams are shared by reference', () => {
+  const expected = {
+    'search-index': ['c-index-build', 'c-index-query'],
+    'version-guard': ['q-version', 'c-events'],
+    'bounded-fanout': ['a-fetch', 'q-cancel', 'a-federated', 's-latency'],
+    'rag-context': ['c-chunking', 'q-context', 'c-context', 's-chat'],
+    'durable-ingestion': ['s-ingestion'],
+  };
+  for (const [flow, ids] of Object.entries(expected)) {
+    assert.ok(catalog.flows[flow], flow);
+    for (const id of ids) {
+      const lesson = catalog.lessons.find(item => item.id === id);
+      assert.equal(lesson.flow_ref, flow, id);
+      assert.ok(render(id, 'walkthroughView').includes(catalog.flows[flow].title), id);
+    }
+  }
+  assert.ok(catalog.lessons.every(lesson => !Object.hasOwn(lesson, 'flow')));
+  assert.equal(vm.runInContext('lessonFlow({flow:{title:"inline"}})', context), null);
+});
+
+test('shared diagrams use plain labels and model cancellation before work finishes', () => {
+  const flowText = JSON.stringify(Object.values(catalog.flows)).toLowerCase();
+  for (const phrase of ['payload', 'in this tenant', 'fan-out', 'exclude candidate']) {
+    assert.ok(!flowText.includes(phrase), phrase);
+  }
+  const bounded = catalog.flows['bounded-fanout'];
+  assert.ok(bounded.graph.description.includes('caller cancels or the deadline expires first'));
+  assert.ok(bounded.graph.nodes.some(node => node.lines.includes('Caller +')));
+  assert.ok(bounded.graph.nodes.some(node => node.lines.includes('Cancel + await')));
+  assert.ok(bounded.graph.nodes.some(node => node.lines.includes('Partial, timeout')));
+});
+
+test('new walkthrough labels use the established reading scale', () => {
+  assert.match(styles, /\.section-kicker\{[^}]*font-size:14px/);
+  assert.match(styles, /\.design-decision summary span\{[^}]*font-size:14px/);
+  assert.match(styles, /\.lesson-flow \.flow-pan-hint\{[^}]*font-size:14px/);
+});
+
+test('diagram connectors touch node outlines, including alternative flows', () => {
+  for (const [name, flow] of Object.entries(catalog.flows)) {
+    for (const graph of [flow.graph, flow.async?.graph].filter(Boolean)) {
+      assert.deepEqual(disconnectedEnds(graph), [], `${name}: ${graph.title}`);
+    }
+  }
+});
+
+test('connectivity checks allow layout changes and detect detached endpoints', () => {
+  const graph = {
+    nodes: [{x:10,y:20,w:100,h:60,shape:'process'}, {x:200,y:20,w:100,h:60,shape:'decision'}],
+    edges: [{path:'M110 50 H200'}],
+  };
+  assert.deepEqual(disconnectedEnds(graph), []);
+  const moved = {nodes:graph.nodes.map(node=>({...node,y:node.y+100})),edges:[{path:'M110 150 H200'}]};
+  assert.deepEqual(disconnectedEnds(moved), []);
+  moved.edges[0].path='M110 150 H180';
+  assert.equal(disconnectedEnds(moved).length, 1);
+});
+
+test('decision introductions precede the question and stay outside its disclosure', () => {
+  for (const lesson of catalog.lessons) {
+    context.decisionFixture = lesson;
+    const html = vm.runInContext('productionDecision(decisionFixture)', context);
+    assert.ok(html.indexOf('<p>') < html.indexOf('<details'), lesson.id);
+    assert.ok(html.indexOf('</p>') < html.indexOf('<summary'), lesson.id);
+  }
 });

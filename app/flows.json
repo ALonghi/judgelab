@@ -1,0 +1,180 @@
+{
+  "search-index": {
+    "title": "Build once, query many times",
+    "summary": "After an upload or edit, extracted text updates the index. Search requests read that stored index and check access before ranking results.",
+    "note": "The exercise calls the builder synchronously, so its caller waits for the writes. Normal application startup opens the existing index; it does not rebuild it. An update replaces one document’s entries, a deletion removes them, and changed word-splitting rules require a rebuild. Before returning content, search must check current permissions.",
+    "graph": {
+      "title": "Index build and query flow",
+      "width": 1000,
+      "height": 500,
+      "description": "Source documents are split into words and written to a stored search index. A search reads the word-to-document entries for its query. Each matching document passes an access check before readable matches are scored, sorted and limited.",
+      "nodes": [
+        {"x":25,"y":65,"w":180,"h":64,"shape":"document","lines":["Extracted","document text"]},
+        {"x":285,"y":65,"w":200,"h":64,"shape":"process","lines":["Tokenize words","Calculate weights"]},
+        {"x":585,"y":50,"w":180,"h":94,"shape":"database","lines":["Search index"]},
+        {"x":25,"y":260,"w":180,"h":64,"shape":"terminal","lines":["Search query"]},
+        {"x":285,"y":250,"w":200,"h":84,"shape":"process","lines":["Look up query words","for this customer"]},
+        {"x":550,"y":224,"w":160,"h":136,"shape":"decision","lines":["Readable?"]},
+        {"x":795,"y":250,"w":180,"h":84,"shape":"process","lines":["Sum weights","Sort + limit"]},
+        {"x":795,"y":405,"w":180,"h":60,"shape":"terminal","lines":["Return results"]},
+        {"x":550,"y":405,"w":160,"h":60,"shape":"terminal","lines":["Exclude"]}
+      ],
+      "edges": [
+        {"path":"M205 97 H285"}, {"path":"M485 97 H585","label":"write","x":535,"y":85},
+        {"path":"M675 144 V190 H385 V250","label":"read matching words","x":503,"y":179},
+        {"path":"M205 292 H285"}, {"path":"M485 292 H550"},
+        {"path":"M710 292 H795","label":"yes","x":752,"y":280},
+        {"path":"M630 360 V405","label":"no","x":648,"y":388}, {"path":"M885 334 V405"}
+      ],
+      "labels": [
+        {"x":25,"y":28,"text":"BUILD · after upload or edit"},
+        {"x":25,"y":213,"text":"SEARCH · per request"},
+        {"x":25,"y":470,"text":"The search path performs no index writes."}
+      ]
+    },
+    "async": {
+      "title": "If indexing runs in the background",
+      "note": "The search store must compare versions and write as one atomic operation: accept newer versions, ignore identical retries and reject conflicting content at the same version. Keep the version after deletion too. If worker v5 pauses while v6 finishes, its later write is rejected. A separate source-version check cannot guarantee this. Background processing makes search temporarily stale.",
+      "graph": {
+        "title": "Asynchronous index update",
+        "width": 1100,
+        "height": 200,
+        "description": "An upload or edit is converted to text, placed on a durable queue, and applied to the stored index by a background worker. Searches use the previous index until the update finishes.",
+        "nodes": [
+          {"x":20,"y":65,"w":170,"h":70,"shape":"document","lines":["Upload or edit"]},
+          {"x":235,"y":65,"w":170,"h":70,"shape":"process","lines":["Extract text"]},
+          {"x":450,"y":65,"w":170,"h":70,"shape":"queue","lines":["Durable queue"]},
+          {"x":665,"y":65,"w":180,"h":70,"shape":"process","lines":["Indexing worker"]},
+          {"x":910,"y":50,"w":160,"h":100,"shape":"database","lines":["Search index"]}
+        ],
+        "edges": [
+          {"path":"M190 100 H235"},
+          {"path":"M405 100 H450","label":"enqueue","x":428,"y":86},
+          {"path":"M620 100 H665","label":"consume","x":643,"y":86},
+          {"path":"M845 100 H910","label":"update","x":878,"y":86}
+        ],
+        "labels": []
+      }
+    }
+  },
+  "version-guard": {
+    "title": "Accept, ignore or reject an incoming revision",
+    "summary": "Compare the incoming source revision with the stored revision before changing current state.",
+    "note": "The source revision orders changes for one document. Production storage must make the comparison and write atomic.",
+    "graph": {
+      "title": "Revision-guarded update flow",
+      "width": 1000,
+      "height": 450,
+      "description": "A newer change updates current state, an older or exact duplicate is ignored, and conflicting content at the same revision is rejected.",
+      "nodes": [
+        {"x":25,"y":165,"w":180,"h":70,"shape":"document","lines":["Incoming change"]},
+        {"x":260,"y":45,"w":180,"h":100,"shape":"database","lines":["Current state","and revision"]},
+        {"x":500,"y":125,"w":180,"h":150,"shape":"decision","lines":["Compare revision","and content"]},
+        {"x":790,"y":45,"w":180,"h":80,"shape":"process","lines":["Apply update","or deletion marker"]},
+        {"x":790,"y":185,"w":180,"h":70,"shape":"terminal","lines":["Ignore"]},
+        {"x":790,"y":325,"w":180,"h":70,"shape":"terminal","lines":["Report conflict"]}
+      ],
+      "edges": [
+        {"path":"M205 200 H500","label":"incoming","x":350,"y":188},
+        {"path":"M350 145 V160 H548","label":"stored","x":445,"y":149},
+        {"path":"M632 160 H735 V85 H790","label":"newer","x":700,"y":149},
+        {"path":"M790 85 H725 V25 H350 V45","label":"atomic write","x":560,"y":16},
+        {"path":"M680 200 H750 V220 H790","label":"older / duplicate","x":735,"y":188},
+        {"path":"M590 275 V360 H790","label":"same revision, different content","x":675,"y":347}
+      ],
+      "labels": [{"x":25,"y":30,"text":"ONE DOCUMENT IDENTITY"}]
+    }
+  },
+  "bounded-fanout": {
+    "title": "Bound downstream work and handle an ending request",
+    "summary": "Cap active calls and keep ownership of each child operation while results, the request deadline, and caller cancellation can race.",
+    "note": "After stopping pending work, apply the lesson’s contract: return allowed partial results, report a timeout, or propagate caller cancellation.",
+    "graph": {
+      "title": "Bounded downstream calls and request lifetime",
+      "width": 1100,
+      "height": 520,
+      "description": "A request starts a bounded set of downstream calls. Completed calls enter a result collector while the caller and deadline remain active. If required work completes, the service builds its response. If the caller cancels or the deadline expires first, the service cancels and awaits pending calls, then follows the lesson’s partial-result, timeout, or cancellation contract.",
+      "nodes": [
+        {"x":20,"y":70,"w":160,"h":64,"shape":"terminal","lines":["Request"]},
+        {"x":220,"y":60,"w":180,"h":84,"shape":"queue","lines":["Unique work","queue"]},
+        {"x":445,"y":60,"w":180,"h":84,"shape":"process","lines":["Bounded calls"]},
+        {"x":680,"y":50,"w":180,"h":100,"shape":"database","lines":["Downstream","systems"]},
+        {"x":680,"y":215,"w":180,"h":84,"shape":"process","lines":["Collect outcomes"]},
+        {"x":20,"y":385,"w":180,"h":84,"shape":"terminal","lines":["Caller +","request deadline"]},
+        {"x":430,"y":205,"w":190,"h":130,"shape":"decision","lines":["What finishes","first?"]},
+        {"x":180,"y":225,"w":190,"h":84,"shape":"terminal","lines":["Build response"]},
+        {"x":680,"y":385,"w":190,"h":70,"shape":"process","lines":["Cancel + await","pending calls"]},
+        {"x":900,"y":385,"w":180,"h":70,"shape":"terminal","lines":["Partial, timeout","or cancellation"]}
+      ],
+      "edges": [
+        {"path":"M180 102 H220"}, {"path":"M400 102 H445"}, {"path":"M625 102 H680"},
+        {"path":"M770 150 V215","label":"outcome","x":770,"y":190},
+        {"path":"M680 257 H650 V270 H620"},
+        {"path":"M200 427 H350 V310 H488","label":"cancel / deadline","x":350,"y":298},
+        {"path":"M430 270 H400 V267 H370"},
+        {"path":"M525 335 V365 H650 V420 H680","label":"request ended","x":605,"y":353},
+        {"path":"M870 420 H900"}
+      ],
+      "labels": [{"x":20,"y":30,"text":"WORK OWNED BY ONE REQUEST"}]
+    }
+  },
+  "rag-context": {
+    "title": "Keep search, model-input selection and answering distinct",
+    "summary": "Documents are split into searchable sections before a request. Each question retrieves permitted evidence, fits it into a size limit and preserves citations.",
+    "note": "Documents are split and indexed when source content changes. Search and model-input selection happen for each question. Each exercise implements only the stage named in its contract.",
+    "graph": {
+      "title": "Search and grounded-answer flow",
+      "width": 1100,
+      "height": 520,
+      "description": "Documents are split into sections and indexed when they change. A query finds matching sections. Sections not allowed for this user are excluded. Readable evidence is selected within the model input limit and produces either a cited answer or a no-evidence response.",
+      "nodes": [
+        {"x":20,"y":55,"w":170,"h":70,"shape":"document","lines":["Source documents"]},
+        {"x":245,"y":50,"w":180,"h":80,"shape":"process","lines":["Split + index"]},
+        {"x":490,"y":40,"w":170,"h":100,"shape":"database","lines":["Search index"]},
+        {"x":20,"y":250,"w":170,"h":64,"shape":"terminal","lines":["User query"]},
+        {"x":245,"y":240,"w":180,"h":84,"shape":"process","lines":["Find matching","sections"]},
+        {"x":485,"y":215,"w":170,"h":134,"shape":"decision","lines":["Readable?"]},
+        {"x":710,"y":240,"w":180,"h":84,"shape":"process","lines":["Select model input","within size limit"]},
+        {"x":710,"y":380,"w":180,"h":100,"shape":"decision","lines":["Useful evidence?"]},
+        {"x":930,"y":240,"w":150,"h":84,"shape":"terminal","lines":["Answer +","citations"]},
+        {"x":485,"y":405,"w":170,"h":64,"shape":"terminal","lines":["Exclude section"]},
+        {"x":930,"y":400,"w":150,"h":64,"shape":"terminal","lines":["No-evidence","response"]}
+      ],
+      "edges": [
+        {"path":"M190 90 H245"}, {"path":"M425 90 H490","label":"write","x":458,"y":78},
+        {"path":"M575 140 V190 H335 V240","label":"read","x":455,"y":180}, {"path":"M190 282 H245"},
+        {"path":"M425 282 H485"}, {"path":"M655 282 H710","label":"yes","x":682,"y":270},
+        {"path":"M570 349 V405","label":"no","x":588,"y":382},
+        {"path":"M800 324 V380"}, {"path":"M890 430 H930","label":"no","x":910,"y":418},
+        {"path":"M800 380 V350 H1005 V324","label":"yes","x":910,"y":338}
+      ],
+      "labels": [{"x":20,"y":28,"text":"ON SOURCE CHANGE"},{"x":20,"y":220,"text":"FOR EACH QUESTION"}]
+    }
+  },
+  "durable-ingestion": {
+    "title": "Make background index updates recoverable",
+    "summary": "Commit the source change and a durable work record together, then let a worker update the search index.",
+    "note": "At the search store, compare versions and write atomically. Accept only newer versions; identical retries do nothing. Retain deletion versions so an older job cannot restore removed content.",
+    "graph": {
+      "title": "Durable ingestion and indexing flow",
+      "width": 1100,
+      "height": 400,
+      "description": "A connector change is stored with a pending-work record. A relay queues the work. A worker extracts and splits content. The search store atomically compares versions and accepts newer updates. Failures return to retry or reconciliation.",
+      "nodes": [
+        {"x":20,"y":75,"w":170,"h":70,"shape":"document","lines":["Connector change"]},
+        {"x":235,"y":60,"w":190,"h":100,"shape":"process","lines":["Store source +","pending work"]},
+        {"x":475,"y":75,"w":170,"h":70,"shape":"queue","lines":["Work queue"]},
+        {"x":700,"y":60,"w":180,"h":100,"shape":"process","lines":["Extract + split","Keep version"]},
+        {"x":930,"y":60,"w":150,"h":100,"shape":"database","lines":["Search index","Atomic version","check + write"]},
+        {"x":700,"y":270,"w":180,"h":70,"shape":"terminal","lines":["Retry or reconcile"]}
+      ],
+      "edges": [
+        {"path":"M190 110 H235"}, {"path":"M425 110 H475","label":"relay","x":450,"y":98},
+        {"path":"M645 110 H700"}, {"path":"M880 110 H930","label":"apply","x":905,"y":98},
+        {"path":"M790 160 V270","label":"failure","x":812,"y":220},
+        {"path":"M700 305 H560 V145","label":"retry","x":615,"y":293}
+      ],
+      "labels": [{"x":20,"y":30,"text":"BACKGROUND INDEX UPDATE"}]
+    }
+  }
+}
