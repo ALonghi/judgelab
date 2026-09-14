@@ -8,6 +8,8 @@ const {disconnectedEnds} = require('./flow_geometry.cjs');
 const root = path.join(__dirname, '..');
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'app/catalog.json'), 'utf8'));
 catalog.flows = JSON.parse(fs.readFileSync(path.join(root, 'app/flows.json'), 'utf8'));
+const guides = JSON.parse(fs.readFileSync(path.join(root, 'app/lesson_guides.json'), 'utf8'));
+for (const lesson of catalog.lessons) lesson.orientation = guides[lesson.id];
 const source = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
 const styles = fs.readFileSync(path.join(root, 'web/app.css'), 'utf8');
 const bootstrap = source.lastIndexOf('(async()=>{try{boot=');
@@ -61,7 +63,7 @@ test('knowledge base retains definitions, design alternatives and supporting not
   for (const lesson of catalog.lessons) {
     const html = render(lesson.id, 'knowledgeView');
     assert.ok(html.includes('knowledge-terms'), lesson.id);
-    assert.ok(html.includes('Design choices explained'), lesson.id);
+    assert.ok(html.includes('What changes the design?'), lesson.id);
   }
   const contextHtml = render('q-context', 'knowledgeView');
   assert.ok(contextHtml.includes('Python ranking example'));
@@ -121,15 +123,15 @@ test('chapter lists separate recaps and home continuation skips them', () => {
 test('walkthroughs explain the approach before the example and implementation', () => {
   for (const lesson of catalog.lessons) {
     const html = render(lesson.id, 'walkthroughView');
-    const production = html.indexOf('aria-label="Production context"');
+    const production = html.indexOf('aria-label="Understand the task"');
     assert.ok(production >= 0, lesson.id);
     assert.ok(production < html.indexOf('class="walk-example"'), lesson.id);
     assert.ok(html.indexOf('class="walk-example"') < html.indexOf('class="walk-implementation"'), lesson.id);
-    assert.ok(html.includes('Exercise boundary'), lesson.id);
+    assert.ok(html.includes('What comes out'), lesson.id);
   }
   const html = render('c-index-build', 'walkthroughView');
   const overview = html.indexOf('aria-label="Solution overview"');
-  assert.ok(overview > html.indexOf('aria-label="Production context"'));
+  assert.ok(overview > html.indexOf('aria-label="Understand the task"'));
   assert.ok(overview < html.indexOf('class="walk-example"'));
   assert.ok(html.indexOf('Full-text search means') < html.indexOf('Build once, query many times'));
   assert.ok(html.includes('PDF/OCR extraction is not implemented'));
@@ -142,24 +144,24 @@ test('walkthroughs explain the approach before the example and implementation', 
   assert.ok(!escaped.includes('<img'));
 });
 
-test('production guidance is visible and escaped for every lesson', () => {
+test('production guidance remains available and escaped for every lesson', () => {
   for (const lesson of catalog.lessons) {
     const html = render(lesson.id, 'walkthroughView');
     const decision = lesson.implementation.decisions[0];
-    assert.ok(html.includes('Decision that changes the design'), lesson.id);
+    assert.ok(html.includes('How would this change in a real service?'), lesson.id);
     assert.ok(html.includes(decision.question), lesson.id);
     assert.ok(html.includes(decision.branches[0].answer), lesson.id);
     assert.ok(html.includes(decision.branches[0].action), lesson.id);
-    assert.ok(html.includes('Mechanism'), lesson.id);
-    assert.ok(html.includes('Production direction'), lesson.id);
-    assert.ok(html.includes('Limits and reasons to change the design'), lesson.id);
+    assert.ok(html.includes('The idea'), lesson.id);
+    assert.ok(html.includes('How to put the approach into practice'), lesson.id);
+    assert.ok(html.includes('When would you choose differently?'), lesson.id);
   }
   context.productionFixture = structuredClone(catalog.lessons[0]);
   context.productionFixture.strategy.use_case = '<img src=x onerror=bad()>';
   context.productionFixture.strategy.mechanism = '<script>bad()</script>';
   context.productionFixture.implementation.decisions[0].question = '<iframe>';
   context.productionFixture.implementation.decisions[0].branches[0].action = '<object>';
-  const html = vm.runInContext('productionContext(productionFixture)', context);
+  const html = vm.runInContext('lessonOrientation(productionFixture) + productionContext(productionFixture)', context);
   assert.ok(html.includes('&lt;img'));
   assert.ok(html.includes('&lt;script&gt;'));
   assert.ok(html.includes('&lt;iframe&gt;'));
@@ -170,10 +172,26 @@ test('production guidance is visible and escaped for every lesson', () => {
   assert.ok(!html.includes('<object>'));
 });
 
+test('every walkthrough introduces its handoff before details without author-facing headings', () => {
+  assert.deepEqual(Object.keys(guides).sort(), catalog.lessons.map(l => l.id).sort());
+  for (const lesson of catalog.lessons) {
+    const html = render(lesson.id, 'walkthroughView');
+    for (const field of ['input', 'output', 'scope', 'example']) assert.ok(lesson.orientation[field], lesson.id);
+    assert.ok(html.indexOf('lesson-handoff') < html.indexOf('walk-example'), lesson.id);
+    assert.ok(html.indexOf('walk-implementation') < html.indexOf('<details class="production-context">'), lesson.id);
+    assert.doesNotMatch(html, /<(?:h[23]|summary)[^>]*>(?:Mechanism|Production direction|A worked example|Exercise boundary)</);
+  }
+  context.orientationFixture = structuredClone(catalog.lessons[0]);
+  context.orientationFixture.orientation.input = '<img src=x onerror=bad()>';
+  const html = vm.runInContext('lessonOrientation(orientationFixture)', context);
+  assert.ok(html.includes('&lt;img'));
+  assert.ok(!html.includes('<img'));
+});
+
 test('index walkthroughs separate writes, reads and the optional worker flow', () => {
   for (const id of ['c-index-build', 'c-index-query']) {
     const html = render(id, 'walkthroughView');
-    assert.ok(html.indexOf('Build once, query many times') < html.indexOf('A worked example'));
+    assert.ok(html.indexOf('Build once, query many times') < html.indexOf('class="walk-example"'));
     assert.ok(html.includes('BUILD · after upload or edit'));
     assert.ok(html.includes('<svg class="flow-graph"'));
     assert.ok(html.includes('graph-decision'));

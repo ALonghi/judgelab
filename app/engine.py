@@ -18,6 +18,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = json.loads((ROOT / 'app/catalog.json').read_text(encoding='utf-8'))
 CATALOG['flows'] = json.loads((ROOT / 'app/flows.json').read_text(encoding='utf-8'))
+_guides = json.loads((ROOT / 'app/lesson_guides.json').read_text(encoding='utf-8'))
+for _lesson in CATALOG['lessons']:
+    _lesson['orientation'] = _guides[_lesson['id']]
 LESSONS = {lesson['id']: lesson for lesson in CATALOG['lessons']}
 MAX_CODE = 128_000
 

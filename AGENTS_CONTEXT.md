@@ -771,6 +771,17 @@ what triggers it, which component owns it, what state it retains and how reads
 and writes use that state. Follow with a concrete worked example, then the bounded
 exercise implementation.
 
+Every activity has a short orientation in app/lesson_guides.json: explain the
+input's source, the learner's task, the resulting output and the supplied or
+omitted work. Keep these introductions aligned with the exact pack contract.
+Use headings that describe what the learner will understand, such as “What you
+start with” and “How to build your solution”, rather than author-facing labels
+such as “Mechanism”, “Production direction” or “Exercise boundary”. Show examples
+before detailed implementation steps and make production trade-offs expandable.
+For SQL lessons, show concrete table rows and the keys connecting them before
+the SQL instructions. Retain SQLite and distinguish manual postings from FTS5's
+internally maintained index. Do not imply that all exercises share one schema.
+
 Ground every topic in a credible use case. For each design, cover the system
 properties that would change the decision. These may include the source of truth,
 derived state, read and write paths, freshness, recovery or workload. Select the

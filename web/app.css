@@ -240,6 +240,38 @@ a.inline-link{text-decoration:underline}
 .lesson-walkthrough>.walk-overview{margin:0;padding:0 0 28px;border-bottom:1px solid var(--line)}
 .lesson-walkthrough>.scenario-actions{margin:0;padding-top:8px}
 .lesson-walkthrough>.practice-check{margin:0}
+/* Read the concept, follow the example, then implement it in that order. */
+.lesson-walkthrough,.lesson-walkthrough:has(.lesson-flow){grid-template-columns:minmax(0,1fr)}
+.lesson-orientation,.schema-example{grid-column:1/-1;min-width:0}
+.lesson-orientation>p,.lesson-scope,.schema-example>p{max-width:75ch}
+.lesson-orientation h3{margin:24px 0 8px}
+.lesson-handoff{margin:28px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-block:1px solid var(--line)}
+.lesson-handoff>div{padding:20px 24px 20px 0;min-width:0}
+.lesson-handoff dt{font-weight:650;margin-bottom:8px}
+.lesson-handoff dd{margin:0;line-height:1.65}
+.lesson-scope{color:var(--muted)}
+.lesson-walkthrough>.production-context{display:block;padding:0 24px;background:var(--soft)}
+.lesson-walkthrough>.production-context>summary{padding:22px 0;font-weight:650;cursor:pointer;font-size:18px}
+.lesson-walkthrough>.production-context .production-considerations{border:0;padding:0}
+.lesson-walkthrough>.production-context[open]{padding-bottom:24px}
+.lesson-walkthrough>.walk-example,.lesson-walkthrough>.walk-implementation{grid-column:1/-1}
+.lesson-walkthrough .learning-reasoning{max-width:78ch}
+.schema-example{padding-block:28px;border-block:1px solid var(--line)}
+.schema-children{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.schema-children>.schema-table:last-child{grid-column:1/-1}
+.schema-table{min-width:0}
+.schema-table>p{margin:16px 0 8px}
+.schema-table .teaching-trace{margin:0 0 16px}
+.schema-table table{background:var(--soft)}
+.schema-table caption{color:var(--ink);font-family:var(--mono,monospace);font-size:16px}
+.schema-link{padding:14px 0;font-family:var(--mono,monospace);font-size:14px}
+@media(max-width:700px){
+  .lesson-handoff,.schema-children{grid-template-columns:minmax(0,1fr)}
+  .lesson-handoff>div{padding:16px 0}
+  .lesson-handoff>div+div{border-top:1px solid var(--line)}
+  .schema-children{gap:8px}
+  .schema-link{overflow-wrap:anywhere}
+}
 @media(max-width:1199px){
   .lesson-walkthrough,.lesson-walkthrough:has(.lesson-flow){grid-template-columns:minmax(0,1fr)}
   .lesson-walkthrough>.production-context{grid-template-columns:minmax(0,1fr)}

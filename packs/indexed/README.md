@@ -4,6 +4,28 @@ This pack follows the guided/full-scan search and precedes context selection.
 It uses Python's standard-library SQLite driver and a local database file.
 No search service, API key or downloaded model is required.
 
+## Start with the whole task
+
+Save which words occur in each document once, so later searches can look up words
+instead of rereading every body. The builder receives extracted text; it does not
+receive raw files or a user's search query.
+
+| When | Input | Work | Result |
+|---|---|---|---|
+| Initial import or ingestion | Extracted Documents | Adapt to SearchUnits, then build_index | Persistent SQLite rows |
+| Each search request | Query and caller's access | search_index reads existing postings | Ranked IDs and scores |
+| Preparing context later | Those ranked IDs | load_chunks fetches their text | Text ready for context selection |
+
+For the first two checkpoints, `document_units()` produces one SearchUnit per
+whole document, with `chunk_id = ""`. In the later chunking lesson,
+`chunk_documents()` produces several SearchUnits per document, numbered `"0"`,
+`"1"`, and so on, before the same builder indexes them. A chunk is a piece of text;
+a posting is a word-to-unit lookup row. They are different things.
+
+You implement the builder first, then the query, then chunking. File arrival,
+extraction and background scheduling are outside these three functions. The
+builder runs when its caller invokes it; it does not require async Python.
+
 ## Why the existing search slows down
 
 The earlier search opens every document and splits its text into words for every
