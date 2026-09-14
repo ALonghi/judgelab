@@ -347,10 +347,24 @@
       "implementation": {
         "state": "Keep transport validation in the route, document lookup in the repository and public result fields in SearchResult.",
         "steps": [
-          "Declare required query/header inputs and a bounded limit using FastAPI’s validation facilities. Check the query’s trimmed length as required by the contract.",
+          "Start with the parameter example below: extend the fastapi import and replace the route’s empty parentheses with query, limit and x_tenant_id declarations. FastAPI extracts those values before calling your function.",
+          "Query(...) means required; the three dots are literal Python syntax here. Query(20, ge=1, le=100) supplies a default and inclusive bounds. Header(..., alias=\"X-Tenant-ID\") reads the required header. Missing required inputs or an invalid integer/bound produce HTTP 422 automatically.",
+          "Inside the route, query is a str, limit is an int and x_tenant_id is a str. Use query.strip() and check the trimmed length; raise HTTPException(status_code=422, detail=\"Query is too short\") when it is below 2. A raw min_length check alone would accept spaces.",
           "Call repository.search with tenant scope, query and limit. Inside the repository, filter the tenant before case-insensitive substring matching and applying the limit.",
           "Map matching stored documents to SearchResult(document_id, title), preserving repository insertion order."
         ],
+        "code": "# Add Header, Query and HTTPException to the existing import.\nfrom fastapi import FastAPI, Header, Query, HTTPException\n\n# Keep the existing app and decorator. This shows input wiring only.\n@app.get(\"/search\", response_model=list[SearchResult])\nasync def search_documents(\n    query: str = Query(...),\n    limit: int = Query(20, ge=1, le=100),\n    x_tenant_id: str = Header(..., alias=\"X-Tenant-ID\"),\n) -> list[SearchResult]:\n    # TODO: validate trimmed query, await repository.search, map results.\n    raise NotImplementedError(\"Implement the route body\")",
+        "trace": {
+          "caption": "GET /search?query=acme&limit=10 with X-Tenant-ID: firm-a",
+          "headers": ["Request input", "Python value inside the route", "Declaration"],
+          "rows": [
+            ["query=acme in the URL", "query = 'acme' (str)", "query: str = Query(...)"],
+            ["limit=10 in the URL", "limit = 10 (int)", "limit: int = Query(20, ge=1, le=100)"],
+            ["X-Tenant-ID: firm-a header", "x_tenant_id = 'firm-a' (str)", "Header(..., alias=\"X-Tenant-ID\")"],
+            ["limit omitted", "limit = 20", "The declared default applies"],
+            ["Missing query/header, limit=abc or limit=101", "HTTP 422 before the route body runs", "FastAPI input validation"]
+          ]
+        },
         "result": "The endpoint returns the agreed schema and never returns a different tenant’s records.",
         "decisions": [
           {
@@ -437,7 +451,7 @@
       "minutes": 40,
       "xp": 120,
       "hints": [
-        "FastAPI Query parameters can enforce numeric bounds; Header supplies X-Tenant-ID.",
+        "Need the request syntax? Open Walkthrough for the route parameter example and request-to-Python table. Query(...) reads required URL input; Header(..., alias=\"X-Tenant-ID\") reads the header. Extend the existing fastapi import to include Query, Header and HTTPException.",
         "Strip the query and enforce the non-whitespace rule. Raise a 422 error for a short normalized query.",
         "Implement the repository search too: tenant filter, case-insensitive substring matching, insertion order, then limit."
       ],
@@ -446,7 +460,7 @@
         "This older exercise intentionally uses substring search, unlike the V2 token scoring.",
         "Treat X-Tenant-ID as a fake fixture, not production authentication."
       ],
-      "concept": "## Keep the adapter small\nRequest validation → application/repository call → response model.\n\nThe simplified header is trusted only for the exercise. A real caller cannot choose its authorization scope merely by supplying a tenant header.\n\nThis unit uses the V1 API contract; do not replace it with the V2 ranking rule.",
+      "concept": "## How request values reach Python\nFor GET /search?query=acme&limit=10, the part after ? contains query parameters separated by &. Headers travel separately: X-Tenant-ID: firm-a supplies the exercise’s tenant. FastAPI reads the route’s parameter declarations, converts values and calls your function with ordinary Python strings and integers. Open Walkthrough for the exact signature and input table.\n\nQuery(...) marks a required value; ... is Python’s Ellipsis used here as a required-value marker. Query(20, ge=1, le=100) means default 20, greater than or equal to 1, less than or equal to 100. Header(..., alias=\"X-Tenant-ID\") explicitly names the header. Header(...) without an alias also maps x_tenant_id to x-tenant-id by default; header names are case-insensitive.\n\n## Use the values in your route\nquery.strip() removes surrounding whitespace. Check its length and raise HTTPException with status_code=422 for a short query. await repository.search(tenant_id=x_tenant_id, query=query, limit=limit) passes the validated values to the supplied async repository. The repository still needs your search implementation.\n\nA StoredDocument exposes fields with dot access, such as doc.title. Build one SearchResult(document_id=doc.document_id, title=doc.title) per match, then return the list. The response_model on the decorator tells FastAPI the output schema; FastAPI serializes the response to JSON.\n\n## Keep the adapter small\nRequest validation → application/repository call → response model.\n\nThe simplified header is trusted only for the exercise. A real caller cannot choose its authorization scope merely by supplying a tenant header.\n\nThis unit uses the V1 API contract; do not replace it with the V2 ranking rule.",
       "followups": [
         "Where would authenticated identity come from?",
         "Which logic should remain testable without HTTP?"

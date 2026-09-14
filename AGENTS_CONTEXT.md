@@ -1394,6 +1394,11 @@ Useful FastAPI practice may include:
 
 Framework trivia should remain secondary to software-engineering reasoning.
 
+The API lesson's Walkthrough must include the imports and route parameter syntax,
+a concrete request mapped to Python values, and explanations of required inputs,
+defaults and validation. Keep this guidance available before an attempt and point
+to it from hints; leave the repository logic and route body for the learner.
+
 ---
 
 # Public-repository privacy rules
