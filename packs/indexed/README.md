@@ -4,22 +4,60 @@ This pack follows the guided/full-scan search and precedes context selection.
 It uses Python's standard-library SQLite driver and a local database file.
 No search service, API key or downloaded model is required.
 
-## The problem before the index
+## Why the existing search slows down
 
-The earlier search accepts an iterable: it can receive a generator instead of a
-list of every document. That avoids one source of memory growth, but its reference
-implementation still accumulates matching hits before sorting. A generator also
-does not avoid reading/tokenizing every document for every query.
+The earlier search opens every document and splits its text into words for every
+query. Reading one document at a time keeps Python from holding the entire
+collection, but it does not reduce the work repeated by each search. Collecting
+and sorting every match creates a separate memory cost.
 
-Separate the costs:
+## Choose the production approach
 
-1. Source loading: how many document bodies are held in Python at once?
-2. Query work: how many records must a request examine?
-3. Result buffering: do we collect every match just to return twenty?
+Full-text search is the feature: find documents by words in their text. An
+inverted index is a common way to implement that feature: each word points to the
+documents containing it. They are not competing alternatives.
 
-An index addresses query work by doing reusable processing at ingestion time.
-Disk-backed tables address retaining the entire index in a Python dictionary.
-SQL aggregation and LIMIT address transferring every match into Python.
+For a new system, estimate document volume, search frequency and how quickly
+updates must appear. For an existing system, measure which part is slow. Then
+choose the smallest option that meets the requirement:
+
+| Option | Use it when | Main cost |
+|---|---|---|
+| Scan stored documents | Searches are rare or measurements show the scan is fast enough. | Every search reads all searchable text. Read in batches to bound application memory. |
+| Database full-text search | Repeated keyword searches need an index, and the existing database handles the measured load. | The database maintains the word lookup and ranking. |
+| Separate search service | Search load harms the primary database, or the product needs behavior it cannot provide, such as typo tolerance or language-specific analysis. | Another service must receive every document, permission change and deletion. It can be temporarily stale. |
+
+SQLite FTS5 and PostgreSQL text search are examples of the second option.
+Dedicated engines implement the third. Both usually maintain an inverted index
+internally and store it more compactly than ordinary application rows.
+
+## What this exercise implements
+
+This pack writes the inverted index as normal SQLite rows so its mechanics are
+visible. One row records a word, a document or chunk ID, and that word’s score
+contribution. The exercise calls this row a **posting**. This schema is a learning
+tool, not a recommendation for a million-file deployment.
+
+A 10,000-word document containing 2,000 distinct normalized words creates 2,000
+posting rows here. One million documents with that average would create two
+billion rows. A database full-text index or dedicated engine uses specialized,
+compressed storage instead of this row-per-word representation.
+
+The other tables separate searchable identity, body text and user permissions so
+their roles remain visible. A production schema may keep title and body together
+and let its database or search engine maintain the text index internally.
+
+## How changes reach the index
+
+Indexing normally runs when a file is uploaded or changed, after text extraction.
+It does not rebuild on ordinary application startup. The work can run in the
+upload transaction when changes must be searchable immediately, or in a
+background worker when a short delay is acceptable.
+
+An update replaces that document’s old index entries. A deletion removes them.
+A full rebuild is useful when the word-splitting rules change or the index must be
+repaired. This checkpoint implements initial construction from unique documents;
+it does not implement uploads, updates, deletions, workers or rebuilds.
 
 ## Checkpoint 1: save searchable facts once
 
@@ -30,31 +68,60 @@ whole-document search, chunk_id is the empty string. Later it will identify a
 piece of a document. A SearchUnit has a tenant, document ID, title, body and access
 metadata. `(tenant_id, document_id, chunk_id)` is its unique identity.
 
-For a document titled `Lease notice` with body `Notice period`, store these rows:
+The previous search checked every document's words for every query. Save those
+checks at import time: one row says which word occurs in which unit, plus the
+points that word contributes if someone searches for it. This row is a **posting**.
+The word itself is stored as text; you do not need a separate word-ID table.
 
-| Term | Unit | Weight |
-|---|---|---:|
-| lease | d1 | 3 |
-| notice | d1 | 4 |
-| period | d1 | 1 |
+`open_index()` in `storage.py` already creates four tables. Your function inserts
+rows into them:
 
-A **posting** records that a term occurs in a particular unit. An **inverted
-index** organizes those records so a term leads to the units containing it.
-The weights preserve the previous exercise's rule: 3 for title membership and
-independently 1 for body membership, once per distinct term. They are not BM25.
+- `units`: integer primary key `id`, tenant/document/chunk identity, title, public flag.
+- `contents`: `unit_id` and the original body `text`.
+- `grants`: `unit_id` and `user_id`, one row per allowed user.
+- `postings`: `tenant_id`, `term`, `unit_id` and `weight`.
 
-`storage.py` provides four tables:
+For tenant `firm-a`, insert document `d1`, title `Lease notice`, body `Notice
+period`. Suppose SQLite assigns `units.id = 7`. The source ID remains `d1`;
+`unit_id = 7` links the other tables' rows to that source record. Obtain this
+integer from the insert cursor's `lastrowid`, rather than inventing an ID.
 
-- `units`: integer primary key, original source identity, title, public flag.
-- `contents`: the original text, separate from searchable metadata.
-- `grants`: user IDs allowed to read each private unit.
-- `postings`: tenant, term, unit ID and weight. Its primary key starts with
-  `(tenant_id, term)`, allowing lookups for a customer's query words.
+`terms(title)` gives `{"lease", "notice"}`; `terms(body)` gives `{"notice",
+"period"}`. Their union contains three distinct words, so insert three postings:
 
-Build one unit at a time. Insert metadata first and get its generated ID from
-`cursor.lastrowid`; use that ID in the other tables. `terms()` supplies normalized
-sets. The union of title/body terms determines which postings exist. For each
-union member, membership in the two sets determines the weight.
+| tenant_id | term | unit_id | weight |
+|---|---|---:|---:|
+| firm-a | lease | 7 | 3 |
+| firm-a | notice | 7 | 4 |
+| firm-a | period | 7 | 1 |
+
+`weight` is a score contribution. Title membership contributes 3 and body
+membership independently contributes 1. Thus notice earns 4. It is neither a
+word position nor an occurrence count; repeating notice in the body adds nothing.
+This preserves the earlier exercise's scoring rule, rather than implementing BM25.
+
+A second document `d2`, title `Schedule`, body `Period`, receives `units.id = 8`.
+Its postings are `(firm-a, schedule, 8, 3)` and `(firm-a, period, 8, 1)`.
+There are two rows for period because two documents contain it.
+
+For a later query `lease period`, assuming both documents are readable, select
+rows for those two words in firm-a. Unit 7 contributes 3 + 1 = 4; unit 8
+contributes 1. The notice and schedule rows do not match this query. Group by
+unit_id and sum the matching weights, then join to units to recover document IDs
+and titles. The stored bodies are not needed to compute these scores.
+
+This is an **inverted index**: start with a word and look up the documents
+containing it. SQLite's supplied primary-key index on
+`(tenant_id, term, unit_id)` supports that lookup. Storing a table of words alone
+would not avoid scanning it without a suitable database index. Common words can
+still match many rows.
+
+In this checkpoint, implement only the builder. For each incoming unit, insert
+metadata, get its database ID, write its body and grants, and compute its postings
+from the union of the two term sets. Finish these writes before requesting the
+next unit. Retain only the current unit's sets and a unit counter in Python.
+A unit with no terms still needs metadata, body and grants and counts as one;
+empty input returns zero. The next checkpoint implements the query.
 
 Python/SQL mechanics:
 
@@ -65,7 +132,7 @@ connection.execute("INSERT INTO labels(name) VALUES (?)", (label,))
 ```
 
 Use `execute` for one row and `executemany` for generated postings/grants. Write a
-unit before asking for the next one. Do not first construct a corpus-sized list.
+unit before asking for the next one. Do not first construct a list of the entire document collection.
 The caller owns commit/rollback; `with connection:` commits on success or rolls
 back on an exception. It does not close the connection.
 
@@ -147,7 +214,7 @@ with weak body evidence. Evaluate this limitation before using the scoring rule.
 only the returned units' text, preserves rank order and rechecks access. Its Chunk
 fields match the next exercise's input. `build_context()` then applies its word
 budget and per-document cap. Search limit and context budget are distinct: a
-small candidate limit can miss a smaller useful chunk later in the corpus.
+small candidate limit can miss a smaller useful chunk later in the document collection.
 
 ## Try the completed pipeline
 
@@ -165,16 +232,21 @@ word can still be expensive.
 
 At query time Python receives at most K small metadata records. SQLite still
 examines matching postings and performs grouping/sorting. Frequent words can
-match most of the corpus; database cache, temporary work and disk space are real
+match most of the document collection; database cache, temporary work and disk space are real
 costs. `open_index` requests a small page cache and file-backed temporary storage;
 that is not a hard process-memory limit or a proof of million-document capacity.
 
 For interviews, explain the ownership of each cost before naming a product. A
 dedicated search engine may provide compressed postings, relevance models such
 as BM25, optimized top-K evaluation, sharding and update tooling. None makes
-permissions, corpus size, query frequency or memory budgets disappear. This pack
-teaches the mechanism on a local disk-backed corpus; it is not a load benchmark.
+permissions, document collection size, query frequency or memory budgets disappear. This pack
+teaches the mechanism on a local disk-backed document collection; it is not a load benchmark.
 
 Technical reading: [SQLite query planning](https://www.sqlite.org/queryplanner.html),
 [Python SQLite API](https://docs.python.org/3/library/sqlite3.html),
 [SQLite temporary storage](https://www.sqlite.org/tempfiles.html).
+
+Further reading: [FTS5 storage and updates](https://www.sqlite.org/fts5.html),
+[Elasticsearch refresh semantics](https://www.elastic.co/docs/manage-data/data-store/near-real-time-search).
+
+[PostgreSQL full-text indexes](https://www.postgresql.org/docs/current/textsearch-indexes.html) describe its built-in inverted index option.

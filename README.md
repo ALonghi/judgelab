@@ -63,7 +63,7 @@ hosted mode is still for one trusted learner, not public code execution.
 | Mode | Activities | What is validated |
 |---|---:|---|
 | Quick checks | 8 | Fixed answer keys and explanations of the practice contracts |
-| Coding missions | 19 | Real pytest acceptance cases, run against your submitted Python |
+| Coding missions | 20 | Real pytest acceptance cases, run against your submitted Python |
 | Architecture discussions | 5 | Word/keyword structure cues, followed by YOUR visible rubric self-review |
 
 The six chapters are:
@@ -72,7 +72,7 @@ The six chapters are:
    filters and top-K ordering.
 2. **Build your first search engine:** four guided checkpoints sharing one file.
 3. **The backend coding path:** latest versions, category counts, disk-backed
-   indexing, indexed scoring, chunking, context selection and
+   indexing, indexed scoring, built-in full-text search, chunking, context selection and
    revision-aware ingestion. Context/version quizzes sit beside their topics.
    Unassisted search remains available as an optional recap, outside chapter progression.
 4. **Reliability & async lab:** refactoring, bounded fetching, cancellation,
@@ -90,6 +90,12 @@ baseline: streaming input can reduce source buffering but does not eliminate
 per-query scanning or accumulation of all matching hits. The indexed pack does
 not claim a million-document benchmark; it checks bounded Python result transfer,
 indexed lookups, persistence and the connection to context construction.
+
+The new [FTS5 interview exercise](packs/fts/README.md) follows the manual query
+checkpoint. It uses SQLite's actual full-text search to query support articles,
+filter user access and return the best matches. Setup is supplied; the demo shows
+how ordinary edits and deletions update the text index. This is a separate pack
+with all-word matching and default FTS5 ranking, not the manual pack's 3/1 score.
 
 
 Choose **Start guided search** on the homepage.

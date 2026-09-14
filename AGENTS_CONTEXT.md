@@ -433,6 +433,14 @@ exclude optional activities from chapter numbering, chapter completion and
 automatic continuation. Keep recaps accessible from their chapter and Code arena.
 The required backend path moves from category counts to index construction.
 
+`c-fts` follows the manual index-query checkpoint with a real SQLite FTS5 query
+exercise in `packs/fts`. The caller selects one customer's database. Setup and
+query-word preparation are supplied; the learner implements MATCH, user-access
+filtering, ascending default rank and SQL LIMIT. Its all-word matching and BM25
+ranking differ deliberately from the manual index's OR matching and 3/1 points.
+Keep the two contracts separate. The FTS demo shows edits, deletion and reopening
+the database without requiring a search service or any external credentials.
+
 The indexed pack uses local SQLite files and synthetic data, without an external
 service. Distinguish source buffering, result buffering and query scan cost.
 Never equate a generator with indexed retrieval, an in-memory postings dictionary
@@ -682,13 +690,16 @@ Each guided exercise should therefore ideally contain:
 
 The difficulty should increase progressively.
 
-Every activity starts with a concise, self-contained problem and its agreed
-requirements (`scenario`). Use ordinary language; do not frame definitions or
-general design alternatives as things the interviewer said. Keep definitions,
-Python notes, alternative designs and related lessons in the separate Knowledge
-base view. Keep concrete examples and implementation guidance in Walkthrough.
-The learner can move directly to Practice or consult either learning view first.
-Preserve detailed teaching without forcing it into one long page before the task.
+Every activity starts with a self-contained problem and its agreed requirements
+(`scenario`). Make it as descriptive as the learner needs to understand the
+situation, constraints and expected outcome. Prefer ordinary, precise words.
+Length is not a quality target: remove filler, but do not remove context merely
+to meet a word count. Do not frame definitions or general design alternatives as
+things the interviewer said. Keep definitions, Python notes, alternative designs
+and related lessons in the separate Knowledge base view. Keep concrete examples
+and implementation guidance in Walkthrough. The learner can move directly to
+Practice or consult either learning view first. Preserve detailed teaching
+without forcing it into one uninterrupted page before the task.
 
 Teach transfer beyond the exercise throughout the learning path. Each activity's
 `strategy` field must name and explain the engineering approach, give a realistic
@@ -703,11 +714,50 @@ problem it addresses visible before the exercise.
 
 The learning sequence is Problem → Walkthrough → Practice, with Knowledge base
 available separately throughout. Problem contains the situation, constraints and
-expected outcome, not a glossary or solution. Walkthrough develops an approach
-using concrete inputs and decisions, then explains implementation and trade-offs.
+expected outcome, not a glossary or solution. Walkthrough starts with the real
+system in which the concept appears, then explains the approach at a high level:
+what triggers it, which component owns it, what state it retains and how reads
+and writes use that state. Follow with a concrete worked example, then the bounded
+exercise implementation.
+
+Ground every topic in a credible use case. For each design, cover the system
+properties that would change the decision. These may include the source of truth,
+derived state, read and write paths, freshness, recovery or workload. Select the
+relevant concerns instead of forcing every category into every lesson. Explain a
+production direction and at least one reason to choose differently. State which
+part the exercise models and which parts it omits. A simplified implementation
+should expose a useful mechanism or decision; its simplicity is not evidence that
+teams should deploy it unchanged.
+
+Open an architecture explanation with a concrete situation. For an existing
+system, name the observed failure or new requirement and the evidence that points
+to it. For a new system, state expected scale and behavior as assumptions that
+will need measurement later. Do not open with a generic checklist of metrics.
+Introduce an unfamiliar term by first describing the operation it names. When
+comparing designs, give a concrete condition for choosing each one. Avoid phrases
+such as “use an appropriate engine” that merely rename the decision.
+
+Mention omitted production work only when it prevents a false conclusion about
+the exercise. Say plainly whether the current course covers that work. Do not
+send the learner toward a later activity unless it implements the missing part.
+
+For derived state such as indexes or caches, explain what populates it and how
+updates/deletions reach it, distinguishing implemented behavior from production
+extensions. Introduce storage and freshness trade-offs before schema or API
+instructions. Explicitly map educational implementations to production choices;
+do not present hand-built exercise internals as default production
+recommendations. Keep query work, process memory, storage layout, write
+amplification and operational complexity distinct.
+Use a connected flowchart when several components, states or branches are easier
+to understand spatially than in short prose. Reuse a named diagram when lessons
+share the same flow. Keep simple functions in prose. Diagrams must show meaningful
+connections such as shared storage, branch outcomes or async boundaries, rather
+than decorating a row of cards with arrows. Use expandable supporting detail and
+responsive layouts to avoid a single uninterrupted column of text.
 Use practical values, records, requests and failure cases. Avoid repeated setup,
 generic numbered chapter headings and instructional filler. The `problem` field
-continues to hold worked reasoning; `scenario` is the concise interview-facing brief.
+continues to hold worked reasoning; `scenario` is the interview-facing brief. It
+may be detailed when the details affect the design or remove ambiguity.
 
 An approach description must explain execution, not just name a pattern. Each
 activity's `implementation` field states the data/state to retain, ordered

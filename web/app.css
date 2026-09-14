@@ -118,3 +118,58 @@ a.inline-link{text-decoration:underline}
 .model-reference{padding:16px 20px;border-bottom:1px solid var(--line);background:var(--soft)}.model-reference[hidden]{display:none}.model-reference>p{font-size:13px;margin:0 0 12px;color:var(--muted)}.model-list{display:flex;gap:28px;overflow:auto;max-height:225px}.model-list>div{flex:0 0 auto;max-width:100%}.model-list h3{font-size:15px;margin:0 0 8px}.model-source{white-space:pre;overflow:auto;font-size:13px;line-height:1.7;margin:0 0 8px}.model-list small{color:var(--muted)}.models-toggle[aria-expanded="true"]{background:var(--soft);border-color:var(--green)}.editor-toolbar{flex-wrap:wrap;gap:10px}.CodeMirror-hints{max-width:min(650px,90vw);font-size:14px;line-height:1.6}.CodeMirror-hint{max-width:none}li.CodeMirror-hint-active{background:var(--green);color:var(--paper)}
 
 .test-scope{padding:16px 20px;margin-bottom:18px;background:var(--soft);border:1px solid var(--line);border-radius:12px;font-size:14px}.test-scope strong{line-height:1.7}.test-scope p{margin:6px 0 0}.scope-links{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}.scope-links>span{color:var(--muted)}
+
+/* Connected SVG diagrams preserve graph topology at every viewport size. */
+.lesson-walkthrough:has(.lesson-flow){max-width:1080px}
+.walk-overview{margin-bottom:36px}
+.lesson-flow{margin:28px 0 22px;padding:24px 0;border-block:1px solid var(--line)}
+.lesson-flow figcaption h2{margin-bottom:10px}
+.lesson-flow figcaption p{margin-bottom:16px}
+.flow-canvas{overflow-x:auto;margin:16px 0 22px;padding:4px 0}
+.flow-graph{display:block;width:100%;min-width:850px;height:auto;color:var(--ink)}
+.graph-node rect,.graph-node>path{fill:var(--bg);stroke:var(--green);stroke-width:1.6}
+.graph-database>path{fill:var(--soft)}
+.graph-decision>path{fill:var(--soft)}
+.graph-node text{fill:var(--ink);font-size:16px;font-weight:550}
+.graph-edge{fill:none;stroke:var(--green);stroke-width:1.8;stroke-linejoin:round}
+.flow-graph marker path{fill:var(--green)}
+.graph-edge-label{font-size:14px;fill:var(--muted);paint-order:stroke;stroke:var(--bg);stroke-width:5px;stroke-linejoin:round}
+.graph-heading{font-size:14px;font-weight:650;fill:var(--muted);letter-spacing:.4px}
+.lesson-flow .flow-note{font-size:14px;max-width:90ch;margin:0}
+.flow-async{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.flow-async summary{cursor:pointer;font-weight:650;line-height:1.5}
+.flow-async>p{font-size:15px}
+.overview-details{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.overview-details .knowledge-section{margin:0}
+.lesson-walkthrough:has(.lesson-flow)>.walk-example,.lesson-walkthrough:has(.lesson-flow)>.walk-implementation{max-width:800px}
+.flow-canvas:focus-visible,.flow-async summary:focus-visible,.overview-details summary:focus-visible,.design-decision summary:focus-visible,.production-limits summary:focus-visible{outline:3px solid var(--green);outline-offset:4px}
+@media(max-width:1000px){.overview-details{grid-template-columns:1fr}}
+
+.flow-pan-hint{display:none}
+@media(max-width:1000px){.lesson-flow .flow-pan-hint{display:block;font-size:14px;color:var(--ink);margin-bottom:0}}
+
+.production-context{margin-bottom:38px;padding-bottom:32px;border-bottom:1px solid var(--line)}
+.section-kicker{margin:0 0 8px;color:var(--green);font-size:14px!important;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.production-context>h2{margin-bottom:12px}
+.production-use-case{font-size:18px!important;line-height:1.65!important}
+.production-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:26px 0 20px;border-block:1px solid var(--line)}
+.production-grid>div{padding:22px 26px 22px 0}
+.production-grid>div+div{padding-left:26px;border-left:1px solid var(--line)}
+.production-grid h3{margin-bottom:9px;font-size:17px;letter-spacing:-.01em}
+.production-grid p{margin:0;color:var(--muted);font-size:15px!important}
+.design-decision{margin:0;border-bottom:1px solid var(--line)}
+.design-decision summary{display:flex;flex-direction:column;gap:4px;padding:16px 0;cursor:pointer;font-weight:650}
+.design-decision summary span{color:var(--green);font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.design-decision[open],.production-limits[open]{margin:14px 0 20px;padding:0 18px 18px;background:var(--soft);border:1px solid var(--line);border-radius:8px}
+.decision-introduction>p{margin:20px 0 8px;color:var(--ink);font-size:15px;max-width:72ch}
+.design-decision dl{margin:0}
+.design-decision dl>div{padding:13px 0}
+.design-decision dl>div+div{border-top:1px solid var(--line)}
+.design-decision dt{font-weight:650}
+.design-decision dd{margin:6px 0 0;font-size:14px;line-height:1.6}
+.production-limits{border-bottom:1px solid var(--line)}
+.production-limits summary{padding:16px 0;cursor:pointer;font-weight:650}
+.production-limits .reference-list{margin:2px 0 0;padding-left:22px}
+.production-limits .reference-list li+li{margin-top:12px}
+.exercise-contract{margin:-8px 0 25px;padding:14px 16px;background:var(--soft);border:1px solid var(--line);border-radius:8px;font-size:15px!important}
+@media(max-width:700px){.production-grid{grid-template-columns:1fr}.production-grid>div{padding:18px 0}.production-grid>div+div{padding-left:0;border-left:0;border-top:1px solid var(--line)}.production-use-case{font-size:17px!important}}

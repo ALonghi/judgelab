@@ -12,9 +12,9 @@ from app.server import Store, LabHTTPServer, Handler, public_catalog
 
 
 def test_catalog_has_expected_modes_and_unique_ids():
-    assert len(LESSONS)==32
-    assert len({x['id'] for x in CATALOG['lessons']})==32
-    assert sum(x['kind']=='code' for x in LESSONS.values())==19
+    assert len(LESSONS)==33
+    assert len({x['id'] for x in CATALOG['lessons']})==33
+    assert sum(x['kind']=='code' for x in LESSONS.values())==20
     assert sum(x['kind']=='quiz' for x in LESSONS.values())==8
     assert sum(x['kind']=='discussion' for x in LESSONS.values())==5
 
@@ -61,6 +61,76 @@ def test_every_activity_exposes_context_before_an_attempt():
             assert all(branch['answer'] and branch['action'] for branch in decision['branches'])
         for link in implementation.get('connections', []):
             assert link['id'] in LESSONS and link['text']
+
+
+def test_shared_system_flows_are_well_formed_and_referenced():
+    flows = CATALOG['flows']
+    assert set(flows) == {
+        'search-index', 'version-guard', 'bounded-fanout', 'rag-context',
+        'durable-ingestion',
+    }
+    referenced = set()
+    for lesson in LESSONS.values():
+        assert 'flow' not in lesson
+        if flow_ref := lesson.get('flow_ref'):
+            assert flow_ref in flows, lesson['id']
+            referenced.add(flow_ref)
+    assert referenced == set(flows)
+    for flow in flows.values():
+        assert flow['title'] and flow['summary'] and flow['note']
+        graph = flow['graph']
+        assert graph['title'] and graph['description']
+        assert graph['width'] > 0 and graph['height'] > 0
+        assert len(graph['nodes']) >= 3 and len(graph['edges']) >= 2
+        assert all(node['lines'] for node in graph['nodes'])
+
+
+def test_first_read_avoids_known_opaque_architecture_phrases():
+    first_read = json.dumps([
+        {
+            'scenario': lesson['scenario'],
+            'strategy': {
+                key: lesson['strategy'][key]
+                for key in ('use_case', 'mechanism', 'proposal', 'caveats')
+            },
+            'decision': lesson['implementation']['decisions'][0],
+        }
+        for lesson in LESSONS.values()
+    ]).lower()
+    for phrase in (
+        'corpus', 'posting relationships explicitly', 'indexed storage engine',
+        'candidate retrieval', 'materialized view', 'thread adapter',
+        'backpressure', 'poison event', 'start with the workload',
+        'enormous individual files', 'dedicated retrieval engine',
+    ):
+        assert phrase not in first_read
+
+
+def test_index_lesson_explains_the_production_choice_before_the_row_model():
+    lesson = LESSONS['c-index-build']
+    assert lesson['strategy']['mechanism'].startswith('Full-text search means')
+    assert 'query-result cache' in lesson['strategy']['mechanism']
+    assert 'Python list' not in lesson['summary']
+    decision = lesson['implementation']['decisions'][0]
+    assert len(decision['branches']) == 3
+    assert 'ordinary SQLite rows' in decision['lead_in']
+    assert 'current course does not implement streaming upload' in ' '.join(
+        lesson['strategy']['caveats']
+    )
+    flow = CATALOG['flows']['search-index']
+    assert 'Normal application startup opens the existing index' in flow['note']
+    assert 'deletion removes them' in flow['note']
+    assert 'check current permissions' in flow['note']
+    async_nodes = [line for node in flow['async']['graph']['nodes']
+                   for line in node['lines']]
+    assert async_nodes[:2] == ['Upload or edit', 'Extract text']
+    assert 'compare versions and write as one atomic operation' in flow['async']['note']
+
+
+def test_chunk_citations_require_retained_content_after_updates():
+    proposal = LESSONS['c-chunking']['strategy']['proposal']
+    assert 'citation identifies the exact text it used' in proposal
+    assert 'retaining that version' in proposal
 
 
 def test_budget_teaching_examples_match_their_trace():
