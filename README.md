@@ -292,7 +292,7 @@ python -m pytest -q tests_app
 Frontend view regression checks (Node.js, no npm dependencies):
 
 ```bash
-node --test tests_ui/lesson_views.test.cjs
+node --test tests_ui/*.test.cjs
 ```
 
 These tests are for the app, not your exercise solutions. They cover real pytest

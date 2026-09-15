@@ -134,7 +134,8 @@ test('walkthroughs explain the approach before the example and implementation', 
   assert.ok(overview > html.indexOf('aria-label="Understand the task"'));
   assert.ok(overview < html.indexOf('class="walk-example"'));
   assert.ok(html.indexOf('Full-text search means') < html.indexOf('Build once, query many times'));
-  assert.ok(html.includes('PDF/OCR extraction is not implemented'));
+  assert.ok(html.includes('PDF/OCR is outside these local exercises'));
+  assert.ok(html.includes('The builder receives bounded chunks, and the chunker consumes streamed words.'));
   context.overviewFixture = structuredClone(catalog.lessons[0]);
   context.overviewFixture.overview = [{heading:'<script>bad()</script>',paragraphs:['<img src=x onerror=bad()>']}];
   const escaped = vm.runInContext('walkthroughOverview(overviewFixture)', context);
