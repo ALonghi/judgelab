@@ -213,6 +213,20 @@ test('index walkthroughs separate writes, reads and the optional worker flow', (
   assert.ok(html.includes('&lt;img&gt;'));
 });
 
+test('durable ingestion shows the main database write before background indexing', () => {
+  const html = render('s-ingestion', 'walkthroughView');
+  const graph = html.match(/<svg class="flow-graph"[\s\S]*?<\/svg>/)[0];
+  const databases = [...graph.matchAll(/<g class="graph-node graph-database">([\s\S]*?)<\/g>/g)].map(match => match[1]);
+  assert.equal(databases.length, 2);
+  assert.match(databases[0], /Main database/);
+  assert.match(databases[0], /Update document/);
+  assert.match(databases[0], /save pending job/);
+  assert.match(databases[0], /One transaction/);
+  assert.match(databases[1], /Search index/);
+  assert.ok(graph.indexOf('Main database') < graph.indexOf('Work queue'));
+  assert.match(html, /After commit, a relay queues the job/);
+});
+
 test('complex system diagrams are shared by reference', () => {
   const expected = {
     'search-index': ['c-index-build', 'c-index-query'],

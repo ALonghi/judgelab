@@ -153,16 +153,16 @@
   },
   "durable-ingestion": {
     "title": "Make background index updates recoverable",
-    "summary": "Commit the source change and a durable work record together, then let a worker update the search index.",
+    "summary": "Update the document and save its pending indexing job in one main-database transaction. After commit, a relay queues the job and a background worker updates the search index.",
     "note": "At the search store, compare versions and write atomically. Accept only newer versions; identical retries do nothing. Retain deletion versions so an older job cannot restore removed content.",
     "graph": {
       "title": "Durable ingestion and indexing flow",
       "width": 1100,
       "height": 400,
-      "description": "A connector change is stored with a pending-work record. A relay queues the work. A worker extracts and splits content. The search store atomically compares versions and accepts newer updates. Failures return to retry or reconciliation.",
+      "description": "A connector change updates the authoritative main database: the document revision and pending indexing job are saved in one transaction. After commit, a relay queues the work. A worker extracts and splits content. The search store atomically compares versions and accepts newer updates. Failures return to retry or reconciliation.",
       "nodes": [
         {"x":20,"y":75,"w":170,"h":70,"shape":"document","lines":["Connector change"]},
-        {"x":235,"y":60,"w":190,"h":100,"shape":"process","lines":["Store source +","pending work"]},
+        {"x":235,"y":45,"w":190,"h":130,"shape":"database","lines":["Main database","Update document +","save pending job","One transaction"]},
         {"x":475,"y":75,"w":170,"h":70,"shape":"queue","lines":["Work queue"]},
         {"x":700,"y":60,"w":180,"h":100,"shape":"process","lines":["Extract + split","Keep version"]},
         {"x":930,"y":60,"w":150,"h":100,"shape":"database","lines":["Search index","Atomic version","check + write"]},
@@ -174,7 +174,7 @@
         {"path":"M790 160 V270","label":"failure","x":812,"y":220},
         {"path":"M700 305 H560 V145","label":"retry","x":615,"y":293}
       ],
-      "labels": [{"x":20,"y":30,"text":"BACKGROUND INDEX UPDATE"}]
+      "labels": [{"x":20,"y":30,"text":"SAVE DOCUMENT → QUEUE WORK → UPDATE SEARCH"}]
     }
   },
   "large-import": {
