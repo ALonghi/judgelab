@@ -52,8 +52,10 @@ def test_disk_index_to_ranked_chunks_to_existing_context(tmp_path):
 import runpy
 import sys
 from pathlib import Path
-from models import Document
+from models import Document, ExtractedDocument
 from storage import open_index, load_chunks
+from source_words import iter_words
+from io import StringIO
 from build_index import build_index
 from search_index import search_index
 from chunk_documents import chunk_documents
@@ -62,10 +64,10 @@ sys.path.insert(0, str(root / 'packs/v2'))
 build_context = runpy.run_path(str(root / 'references/v2/practice/round03_context.py'))['build_context']
 db = open_index('integration.sqlite')
 docs = iter([
-    Document('a', 'd1', 'Manual', 'lease notice alpha beta', True),
-    Document('a', 'd2', 'Notes', 'notice later', True),
-    Document('a', 'secret', 'lease notice', 'lease notice', False, frozenset({'bob'})),
-    Document('b', 'd1', 'lease notice', 'lease notice', True),
+    ExtractedDocument(Document('a', 'd1', 'Manual', True), iter_words(StringIO('lease notice alpha beta'))),
+    ExtractedDocument(Document('a', 'd2', 'Notes', True), iter_words(StringIO('notice later'))),
+    ExtractedDocument(Document('a', 'secret', 'lease notice', False, frozenset({'bob'})), iter_words(StringIO('lease notice'))),
+    ExtractedDocument(Document('b', 'd1', 'lease notice', True), iter_words(StringIO('lease notice'))),
 ])
 with db:
     assert build_index(db, chunk_documents(docs, max_words=2)) == 5
@@ -78,7 +80,7 @@ context = build_context(chunks, tenant_id='a', user_id='alice', word_budget=4)
 assert context.text == '[1] lease notice\n[2] notice later'.replace('\\n', '\n')
 assert context.words_used == 4
 assert [(c.document_id, c.chunk_id) for c in context.citations] == [('d1', '0'), ('d2', '0')]
-db.execute("UPDATE units SET public=0 WHERE tenant_id='a' AND document_id='d2'")
+db.execute("UPDATE documents SET public=0 WHERE tenant_id='a' AND document_id='d2'")
 assert [c.document_id for c in load_chunks(db, hits, tenant_id='a', user_id='alice')] == ['d1']
 db.close()
 print('Disk-backed index -> ranked chunks -> cited context passed')

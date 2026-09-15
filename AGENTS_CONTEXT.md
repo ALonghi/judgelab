@@ -468,9 +468,11 @@ and for practising set intersections.
 # 5. Context construction / RAG preparation
 
 The core chapter now teaches a disk-backed retrieval bridge before context:
-`c-index-build` writes per-term postings to SQLite while consuming units once;
+`c-index-build` writes term-to-chunk rows to SQLite while consuming extracted chunks once;
 `c-index-query` scores with stored weights and applies the result limit in SQL;
-`c-chunking` yields identified chunks that the same index/query can retrieve.
+`c-chunking` groups one-pass extracted word streams into identified chunks for that builder.
+Runtime order is extraction, chunking, indexing, query, selected text, context;
+lessons teach storage/query first with supplied chunks.
 The context quiz follows those checkpoints, then `c-context` consumes their
 ranked text. The source revision quiz sits before event ingestion; cancellation
 follows basic async fetching. Preserve activity IDs when changing their order so
@@ -495,9 +497,29 @@ The indexed pack uses local SQLite files and synthetic data, without an external
 service. Distinguish source buffering, result buffering and query scan cost.
 Never equate a generator with indexed retrieval, an in-memory postings dictionary
 with bounded memory, or a SQL LIMIT with bounded total database work. These
-exercises retain the toy title/body score, not BM25. Document construction still
-holds one source body; huge individual files need a separate streaming extractor.
-The uploads pack now provides one for bounded UTF-8 lines; it does not parse PDFs or perform OCR.
+exercises retain the toy title/body score, not BM25. In the indexed pack,
+Document holds metadata only; ExtractedDocument pairs it with a word iterator,
+and DocumentChunk refers to shared metadata plus nonempty chunk_id and bounded
+text. The supplied iter_words reader bounds decoded-text reads and rejects
+oversized words. Chunking must yield before reading ahead. Custom extractors must
+bound their output and memory; PDF/OCR is outside this pack. The uploads pack
+separately supplies bounded UTF-8 line extraction.
+
+The indexed schema stores title/public once in documents and allowed users once
+in document_access. chunks stores source IDs, chunk_texts stores text, and
+term_chunks links terms to chunks through chunk_pk = chunks.id. Explain that
+these entries are conventionally called postings after explaining the relationship.
+The 3/1 scoring signal still applies title boosts per chunk; normalized metadata
+does not itself fix weak title-only matches. Initial ingestion guarantees
+consistent document metadata and unique chunk identities; updates are separate.
+Keep activity IDs and saved drafts when revising contracts. Tell learners to
+export older SearchUnit drafts before resetting and use a fresh practice database.
+
+When describing memory in other packs, distinguish selected output from retained
+state: context deduplication grows with inspected visible identities, federated
+retrieval retains tasks/hits, and FTS fixtures hold complete short articles.
+A semaphore limits active calls, not task allocation. Each lesson's input should
+name its producer and distinguish document chunks from network/model fragments.
 
 The project should teach the application logic around retrieval-augmented generation without requiring actual LLM API calls.
 

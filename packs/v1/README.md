@@ -136,9 +136,9 @@ pytest -q tests/test_exercise5_refactor.py
 
 Good narration:
 
-> "I'll start with the simplest correct implementation. Since the input can be
-> large, I don't want unbounded concurrency, so I'll put the downstream call
-> behind a semaphore."
+> "A semaphore will cap active downstream calls. This exercise still retains
+> one task/result per distinct ID. For a very large batch, I would use a fixed
+> worker pool and decide how to stream or store the outcomes."
 
 Less useful narration:
 

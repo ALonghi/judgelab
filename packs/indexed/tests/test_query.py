@@ -11,10 +11,10 @@ def search(db, query="notice", **kwargs):
 def test_query_sums_distinct_query_terms_without_body_read(db):
     seed(db, "d", {"notice": 4, "lease": 3}, text="unrelated")
     db.set_authorizer(lambda action, table, *args:
-                      sqlite3.SQLITE_DENY if action == sqlite3.SQLITE_READ and table == "contents"
+                      sqlite3.SQLITE_DENY if action == sqlite3.SQLITE_READ and table == "chunk_texts"
                       else sqlite3.SQLITE_OK)
     hits = search(db, "NOTICE notice lease!")
-    assert [(h.tenant_id, h.document_id, h.chunk_id, h.title, h.score) for h in hits] == [("a", "d", "", "d", 7)]
+    assert [(h.tenant_id, h.document_id, h.chunk_id, h.title, h.score) for h in hits] == [("a", "d", "0", "d", 7)]
 
 
 def test_query_or_matching_and_whole_tokens(db):

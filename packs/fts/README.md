@@ -100,6 +100,17 @@ The demo edits and deletes ordinary FTS5 rows, then repeats a query. FTS5 mainta
 its text index with those writes; reopening the database reuses the stored index.
 There is no external-content table or trigger setup to implement in this pack.
 
+## Input size and table names
+
+The supplied Article record contains a complete short support-article body.
+This checkpoint starts with an existing database and teaches querying; its setup
+is not a streaming large-file importer. SQL LIMIT bounds returned rows, while
+matching and ranking can examine more rows inside SQLite.
+
+`grants` means article access permissions: each row links `article_rowid` to one
+allowed `user_id`. It belongs to this independent FTS schema. The manual chunk
+index uses `document_access` because permissions apply to the shared document.
+
 ## Discuss the production decision
 
 For a new portal, agree on expected document size, search traffic and the delay

@@ -314,3 +314,18 @@ test('continue traverses all chapters, skips recaps and completed activities', (
   assert.equal(vm.runInContext('nextFor("s-chat").id', context), 'p-fastapi');
   vm.runInContext('state.completed={}', context);
 });
+
+test('indexed examples separate shared document metadata from identified chunks', () => {
+  for (const id of ['c-index-build', 'c-index-query', 'c-chunking']) {
+    const html = render(id, 'walkthroughView');
+    for (const name of ['documents', 'document_access', 'chunks', 'chunk_texts', 'term_chunks']) {
+      assert.ok(html.includes(`<caption>${name}</caption>`), `${id}: ${name}`);
+    }
+    const chunkTable = html.match(/<caption>chunks<\/caption>([\s\S]*?)<\/table>/)[1];
+    assert.ok(chunkTable.includes('chunk_id'));
+    assert.ok(!chunkTable.includes('title'));
+    assert.ok(!chunkTable.includes('public'));
+    assert.ok(!html.includes('An empty chunk_id means'));
+    assert.ok(html.includes('Thirty days'));
+  }
+});

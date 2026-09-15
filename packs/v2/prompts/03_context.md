@@ -41,3 +41,12 @@ Which parts belong in retrieval and which in prompt construction? How would a re
 tokenizer, document versions, snippets, changing permissions, and model output
 citations affect the design? What happens when the model cites a label never
 provided? Why is a resolvable citation not proof the cited text supports a claim?
+
+## Input and memory boundary
+
+The input contains ranked, already-extracted text chunks, not raw files or network
+fragments. The word budget bounds selected text. Deduplication retains identities
+of all visible nonempty chunks inspected, including those skipped for size, so
+its memory can grow beyond the selected output. The caller should bound incoming
+chunk sizes and retrieval volume. Access fields belong to this function's input
+contract; they do not prescribe storing a separate permission list per chunk.

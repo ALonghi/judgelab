@@ -1,22 +1,23 @@
-"""Checkpoint 3. Make independently searchable text units with source IDs."""
-import re
+"""Checkpoint 3. Group streamed source words into searchable chunks."""
 from collections.abc import Iterable, Iterator
-from models import Document, SearchUnit
+from models import DocumentChunk, ExtractedDocument
 
 
-def chunk_documents(documents: Iterable[Document], *, max_words: int) -> Iterator[SearchUnit]:
-    r"""Yield bounded, non-overlapping chunks in document/word order.
+def chunk_documents(documents: Iterable[ExtractedDocument], *,
+                    max_words: int) -> Iterator[DocumentChunk]:
+    """Yield bounded chunks from one-pass word iterators, in source order.
 
     max_words is an int; raise ValueError if <1 before consuming documents
-    (validation may occur when iteration starts). Words are whitespace-delimited
-    spans; preserve their text/case/punctuation, join with single spaces.
-    Skip blank bodies. Number each document's chunks '0', '1', ... .
-    Copy tenant, document ID, title, public and allowed_users into every unit.
-    Yield as soon as max_words words are buffered; flush a final short chunk.
-    Do not read the next document before yielding this one's chunks. Do not
-    split/list the entire corpus or entire document body; use re.finditer(r'\S+',
-    document.text) to buffer at most max_words matched words at a time.
-    A Document already contains its body string. This limits extra chunking
-    memory, not the size of that source string or of an individual huge word.
+    (validation may occur when iteration starts). Each source supplies shared
+    Document metadata and words: nonempty whitespace-delimited strings with
+    case/punctuation intact. The supplied iter_words() reader limits word size.
+    Retain at most max_words words. Join them with single spaces and yield
+    immediately when full, BEFORE requesting another word. Flush a final short
+    chunk. Skip empty word streams. Number chunks '0', '1', ... per document.
+    Each DocumentChunk refers to the source Document; do not copy title/access
+    into new per-chunk metadata or buffer the entire source/word iterator.
+    Finish this document before requesting the next. Do not mutate inputs.
+    With bounded source words, memory is independent of total file size/count.
+    File decoding, PDF/OCR and sentence-aware boundaries are outside this task.
     """
-    raise NotImplementedError("Yield searchable chunks with provenance")
+    raise NotImplementedError("Group streamed words into identified chunks")

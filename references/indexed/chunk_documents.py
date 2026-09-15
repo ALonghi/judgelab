@@ -1,22 +1,20 @@
-"""Reference checkpoint 3: stream words into bounded groups."""
-import re
+"""Reference checkpoint 3: group source words without reading ahead."""
 from collections.abc import Iterable, Iterator
-from models import Document, SearchUnit
+from models import DocumentChunk, ExtractedDocument
 
 
-def chunk_documents(documents: Iterable[Document], *, max_words: int) -> Iterator[SearchUnit]:
+def chunk_documents(documents: Iterable[ExtractedDocument], *,
+                    max_words: int) -> Iterator[DocumentChunk]:
     if max_words < 1:
         raise ValueError("max_words must be positive")
-    for doc in documents:
+    for source in documents:
         words = []
         index = 0
-        for match in re.finditer(r"\S+", doc.text):
-            words.append(match.group())
+        for word in source.words:
+            words.append(word)
             if len(words) == max_words:
-                yield SearchUnit(doc.tenant_id, doc.document_id, str(index), doc.title,
-                                 " ".join(words), doc.public, doc.allowed_users)
+                yield DocumentChunk(source.document, str(index), " ".join(words))
                 words = []
                 index += 1
         if words:
-            yield SearchUnit(doc.tenant_id, doc.document_id, str(index), doc.title,
-                             " ".join(words), doc.public, doc.allowed_users)
+            yield DocumentChunk(source.document, str(index), " ".join(words))

@@ -95,9 +95,11 @@ capacity are architecture topics, not simulated production capabilities.
 ### A good first session
 
 The scalable-search continuation is **full-scan search → build an index on disk →
-query posting weights with a SQL result limit → create searchable chunks → select
+query term-to-chunk weights with a SQL result limit → implement streamed-word chunking → select
 cited context**. See [the indexed pack](packs/indexed/README.md) for the schema,
-SQL primer, exact contracts and runnable demo. The earlier scan is a correctness
+SQL primer, exact contracts and runnable demo. The builder receives bounded chunks
+from the start; the later chunking lesson implements their upstream producer.
+Document titles and permissions are stored once per document. The earlier scan is a correctness
 baseline: streaming input can reduce source buffering but does not eliminate
 per-query scanning or accumulation of all matching hits. The indexed pack does
 not claim a million-document benchmark; it checks bounded Python result transfer,

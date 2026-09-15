@@ -12,17 +12,18 @@ def search_index(connection: sqlite3.Connection, query: str, *,
     if not query_terms:
         return []
     placeholders = ",".join("?" for _ in query_terms)
-    # Only placeholder syntax is generated; every user value is bound.
     rows = connection.execute(f"""
-        SELECT u.tenant_id, u.document_id, u.chunk_id, u.title, SUM(p.weight) AS score
-        FROM postings p JOIN units u ON u.id = p.unit_id
-        WHERE p.tenant_id = ? AND u.tenant_id = ?
-          AND p.term IN ({placeholders})
-          AND (u.public = 1 OR EXISTS (
-              SELECT 1 FROM grants g WHERE g.unit_id = u.id AND g.user_id = ?
+        SELECT c.tenant_id, c.document_id, c.chunk_id, d.title, SUM(t.weight) AS score
+        FROM term_chunks t JOIN chunks c ON c.id = t.chunk_pk AND c.tenant_id = t.tenant_id
+        JOIN documents d ON d.tenant_id = c.tenant_id AND d.document_id = c.document_id
+        WHERE t.tenant_id = ? AND t.term IN ({placeholders})
+          AND (d.public = 1 OR EXISTS (
+              SELECT 1 FROM document_access a
+              WHERE a.tenant_id = d.tenant_id AND a.document_id = d.document_id
+                AND a.user_id = ?
           ))
-        GROUP BY u.id
-        ORDER BY score DESC, u.document_id ASC, u.chunk_id ASC
+        GROUP BY c.id
+        ORDER BY score DESC, c.document_id ASC, c.chunk_id ASC
         LIMIT ?
-    """, (tenant_id, tenant_id, *query_terms, user_id, limit))
+    """, (tenant_id, *query_terms, user_id, limit))
     return [IndexedHit(*row) for row in rows]

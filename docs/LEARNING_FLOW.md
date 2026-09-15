@@ -13,10 +13,10 @@ not close that implementation gap.
 |---|---|---|
 | q-sets, q-score, q-tenants, q-filter, q-limit | Unique words, per-field points, eligibility and ordering | Small examples; no scalable retrieval claim |
 | g-score, g-permissions, g-categories, g-search | The four parts of a simple search | A full-scan correctness baseline; iterable input does not bound all hit storage |
-| c-latest, c-counts, c-search | Identity/version selection, aggregation and independent search rehearsal | Exact input contracts differ intentionally; indexed exercises accept unique units |
-| c-index-build | Write metadata, text, access grants and weighted postings incrementally to SQLite | Durable term-to-unit lookup; no updates or deletion policy yet |
-| c-index-query | Match postings, check access, sum weights, order and limit in SQL | Top eligible IDs/titles/scores; no body reads during scoring |
-| c-chunking | Yield bounded text units with parent IDs and access metadata | Same index can score chunks; load_chunks fetches returned text in rank order |
+| c-latest, c-counts, c-search | Identity/version selection, aggregation and independent search rehearsal | Exact input contracts differ intentionally; indexed exercises accept unique chunks |
+| c-index-build | Write shared document metadata/access, chunk text and term-to-chunk weights incrementally to SQLite | Durable term-to-chunk lookup; no updates or deletion policy yet |
+| c-index-query | Match term-to-chunk rows, check access, sum weights, order and limit in SQL | Top eligible IDs/titles/scores; no body reads during scoring |
+| c-chunking | Group streamed words into bounded chunks referring to shared document metadata | Same index can score chunks; load_chunks fetches returned text in rank order |
 | q-context, c-context | Keep whole chunks under a budget and construct citations | Word budget is a toy proxy; search limit and context capacity are different limits |
 | q-version, c-events | Recognize stale revisions and preserve deletion history | Needed to design updates to derived indexes; the initial index pack itself is append-only |
 | a-refactor, a-fetch, q-cancel, a-federated | Async mechanics, bounded calls, ownership, partial results and score merging | Fakes have comparable scores; real sources need an explicit merge policy |
@@ -44,7 +44,7 @@ checkpoints with the existing context builder and checks source IDs and access.
 - Category filtering in the indexed pack. Tenant and per-user access are tested;
   this simplified SQL contract is not a drop-in replacement for every V2 feature.
 - Incremental index updates and tombstone retention. The event lessons provide
-  reasoning for a future extension; the new builder accepts unique units.
+  reasoning for a future extension; the new builder accepts unique chunks.
 
 The distinction matters in an interview: explain where memory grows, which work
 is repeated, and which storage/query mechanism changes each cost. Returning K

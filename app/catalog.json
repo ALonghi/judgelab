@@ -358,11 +358,31 @@
           "caption": "GET /search?query=acme&limit=10 with X-Tenant-ID: firm-a",
           "headers": ["Request input", "Python value inside the route", "Declaration"],
           "rows": [
-            ["query=acme in the URL", "query = 'acme' (str)", "query: str = Query(...)"],
-            ["limit=10 in the URL", "limit = 10 (int)", "limit: int = Query(20, ge=1, le=100)"],
-            ["X-Tenant-ID: firm-a header", "x_tenant_id = 'firm-a' (str)", "Header(..., alias=\"X-Tenant-ID\")"],
-            ["limit omitted", "limit = 20", "The declared default applies"],
-            ["Missing query/header, limit=abc or limit=101", "HTTP 422 before the route body runs", "FastAPI input validation"]
+            [
+              "query=acme in the URL",
+              "query = 'acme' (str)",
+              "query: str = Query(...)"
+            ],
+            [
+              "limit=10 in the URL",
+              "limit = 10 (int)",
+              "limit: int = Query(20, ge=1, le=100)"
+            ],
+            [
+              "X-Tenant-ID: firm-a header",
+              "x_tenant_id = 'firm-a' (str)",
+              "Header(..., alias=\"X-Tenant-ID\")"
+            ],
+            [
+              "limit omitted",
+              "limit = 20",
+              "The declared default applies"
+            ],
+            [
+              "Missing query/header, limit=abc or limit=101",
+              "HTTP 422 before the route body runs",
+              "FastAPI input validation"
+            ]
           ]
         },
         "result": "The endpoint returns the agreed schema and never returns a different tenant’s records.",
@@ -1952,18 +1972,18 @@
     {
       "id": "c-index-build",
       "scenario": {
-        "prompt": "A document search worked when the archive was small. As more files were added, each request became slower because it reopened and split every document into words. Move that repeated work out of the search request.",
+        "prompt": "A growing archive contains many files, some too large to load into one string. An ingestion pipeline already yields bounded text chunks. Save their word matches once so searches can use a disk lookup.",
         "requirements": [
-          "The SQLite schema is provided; input identities are unique.",
-          "Write each document and its related rows before requesting the next document.",
-          "For this local exercise, store one word-to-document row for each distinct word found in the title or body. The caller owns the transaction."
+          "The SQLite schema and an iterator of DocumentChunk records are supplied. Each chunk has nonempty source identity and bounded text.",
+          "Store title and access once per document. Write each chunk and its term lookup rows before requesting the next chunk.",
+          "Use the established 3-point title and 1-point text weights. Return the chunk count; the caller owns the transaction."
         ],
-        "deliverable": "Build the local word-to-document lookup and return the number of searchable records written."
+        "deliverable": "Implement build_index(connection, chunks), storing document metadata, chunk text and term-to-chunk lookup rows."
       },
       "track": "core",
       "kind": "code",
       "title": "Stop rereading every file for each search",
-      "summary": "Every search repeats the same work across all stored documents.",
+      "summary": "Index extracted chunks once, without loading a complete file or collection.",
       "pack": "indexed",
       "file": "build_index.py",
       "workspace": "indexed/build_index.py",
@@ -1979,59 +1999,64 @@
       "depends": [
         "g-search"
       ],
-      "expected_tests": 9,
+      "expected_tests": 11,
       "problem": {
         "title": "Stop rereading every file for each search",
-        "problem": "A document search worked when the archive was small. After the archive grew, request traces showed the same work on every search: open each document, split its title and body into words, and test those words against the query. The service needs to reuse that work without requiring every document to remain in Python memory.",
+        "problem": "A growing archive contains many files, some too large to load into one string. An ingestion pipeline already yields bounded text chunks. Save their word matches once so searches can use a disk lookup.",
         "reasoning": [
-          "Start with document d1 in customer account firm-a: title “Lease notice”, body “Notice period”. The earlier search opens this document and checks its words on every request. We can save the result of those word checks when the document arrives.",
-          "Store one row for each distinct word, identifying the document containing it and the points that word would contribute to a search. That row is called a posting. The supplied postings table has four columns: tenant_id, term, unit_id and weight. The term column stores the word itself, such as “notice”. No separate word-ID table is needed.",
-          "First insert d1 into the supplied units table. Suppose SQLite assigns units.id = 7. The source document_id is still “d1”; 7 is the database key used to connect its rows across tables. A SearchUnit is the record you receive in Python. Here it represents a whole document, with chunk_id = \"\". Later, one unit can represent a smaller section, also called a chunk, of a document.",
-          "The scoring rule awards 3 points if a word appears in the title and 1 if it appears in the body. For d1, save (“firm-a”, “lease”, 7, 3), (“firm-a”, “notice”, 7, 4) and (“firm-a”, “period”, 7, 1). The last number is that word’s score contribution: notice gets 3 + 1 because it appears in both fields. It is neither a word position nor an occurrence count. Repeating notice in the body would leave its weight at 4.",
-          "Suppose a second public document d2 in firm-a has title “Schedule” and body “Period”, and receives units.id = 8. It adds (“firm-a”, “schedule”, 8, 3) and (“firm-a”, “period”, 8, 1). There are now two rows for period, one per document. This is an inverted index: a lookup starts with a word and finds the documents that contain it.",
-          "Now search for “lease period” in firm-a, assuming both documents are readable. Select postings for lease or period: unit 7 has weights 3 and 1; unit 8 has weight 1. Add the matching weights per unit, giving d1 a score of 4 and d2 a score of 1. The notice row contributes nothing to this query. Join unit_id to units.id to recover document IDs and titles; no body text is needed to calculate the scores.",
-          "Your task in this checkpoint is to write these rows in build_index(connection, units) and return the number of units written. open_index() already creates the tables; document_units() already adapts Documents to SearchUnits. The next checkpoint implements the query, including access checks before limiting results. Finish each unit’s writes before reading the next so Python does not retain the whole archive."
+          "The pipeline supplies two chunks for firm-a/d1, titled Lease notice: chunk 0 contains Notice period, and chunk 1 contains Thirty days. Both refer to the same Document metadata. No complete body string is needed.",
+          "Store one documents row for d1 and one document_access row for reader-a. Each chunks row refers to that document through (tenant_id, document_id). The title and permission list are not copied into stored chunks.",
+          "Suppose the two chunks receive database IDs 7 and 8. Their source chunk IDs remain 0 and 1. chunk_texts and term_chunks use chunk_pk to refer to chunks.id; the source IDs survive retrieval into citations.",
+          "For chunk 0, term_chunks stores lease with weight 3, notice with weight 4, and period with weight 1. Each row links a term to a chunk and its score contribution. Search literature calls such entries postings; together they form an inverted index.",
+          "For chunk 1, lease and notice each get weight 3 from the shared title, while thirty and days each get 1 from its text. Title boosts still repeat in this scoring rule even though title storage is normalized. A title-only match can return several chunks with weak body evidence.",
+          "A lease period query gives chunk 0 a score of 4 and chunk 1 a score of 3. SQL joins the matches to document access, ranks them and applies the result limit. It does not load chunk_texts to compute scores.",
+          "Finish all rows for one chunk before pulling the next. SQLite retains document identities on disk, so Python needs no growing set of documents it has already indexed. Input metadata must be consistent across chunks and existing rows; this checkpoint does not resolve updates."
         ]
       },
       "brief": {
         "heading": "Stop rereading every file for each search",
-        "scenario": "The current search reopens every stored document for every query. Build a reusable word-to-document lookup while processing one document at a time.",
+        "scenario": "A growing archive contains many files, some too large to load into one string. An ingestion pipeline already yields bounded text chunks. Save their word matches once so searches can use a disk lookup.",
         "vocabulary": [
           {
-            "term": "Posting",
-            "meaning": "One row in this exercise recording a word, a searchable document or chunk ID, and the points that word adds to a matching query."
+            "term": "Document",
+            "meaning": "Shared tenant/document identity, title and access; it contains no body."
+          },
+          {
+            "term": "DocumentChunk",
+            "meaning": "One bounded text piece, a nonempty chunk_id and a reference to Document metadata."
+          },
+          {
+            "term": "term_chunks",
+            "meaning": "Rows linking distinct words to matching chunks and their score contributions. Such entries are conventionally called postings."
           },
           {
             "term": "Inverted index",
-            "meaning": "A common structure behind full-text search: each word leads to the document or chunk IDs containing it."
+            "meaning": "A lookup from a word to the chunks that match it."
           },
           {
-            "term": "SQLite connection",
-            "meaning": "A Python handle to a local database file, not a list of its contents."
-          },
-          {
-            "term": "SearchUnit",
-            "meaning": "One searchable record. chunk_id is empty for a whole document; a later checkpoint uses numbered chunks."
+            "term": "chunk_pk",
+            "meaning": "The generated chunks.id used by related database rows; distinct from a source chunk_id."
           },
           {
             "term": "Transaction",
-            "meaning": "A caller-controlled group of database writes that succeeds or rolls back together."
+            "meaning": "A caller-controlled group of writes that commits or rolls back together."
           }
         ],
-        "rule": "Append unique units and their per-term weights, one unit at a time. Return the number indexed without committing or closing the caller's connection.",
-        "example": "For document d1 with database ID 7, the posting (\"firm-a\", \"notice\", 7, 4) means: notice appears in this document and contributes 4 points when notice is a query term (3 for the title plus 1 for the body)."
+        "rule": "Append unique chunks and term weights incrementally. Store document metadata once and return the chunk count without committing or closing.",
+        "example": "For chunk 0, term_chunks stores lease with weight 3, notice with weight 4, and period with weight 1. Each row links a term to a chunk and its score contribution. Search literature calls such entries postings; together they form an inverted index."
       },
       "strategy": {
         "name": "Disk-backed inverted indexing",
         "mechanism": "Full-text search means finding documents by words in their text. Most implementations use an inverted index: for each word, they keep references to the documents containing it. This index is stored search data derived from the documents and reused by different queries. A query-result cache instead stores the answer to one earlier query.",
-        "use_case": "A document service has become slow because every keyword search rereads and splits every stored document. Measurements show that this repeated scan, rather than one unusually slow file or network call, dominates request time.",
+        "use_case": "A growing archive contains many files, some too large to load into one string. An ingestion pipeline already yields bounded text chunks. Save their word matches once so searches can use a disk lookup.",
         "prompt": "“Search rereads every file for each query. How can we reuse work when the same collection is searched repeatedly?”",
         "recognize": "How much text is searched, how often, and with what latency target? How quickly must uploads, edits, deletions and permission changes appear? Can the primary database meet the measured workload, or does search need separate scaling and operations?",
         "proposal": "For a new system, estimate document volume, query frequency and how quickly edits must become searchable, then test those assumptions as traffic arrives. For an existing system, measure the slow path first. Keep the current read-every-document approach if it is fast enough. Otherwise, try the database's built-in full-text search before adding another service. Use a separate search service when the database cannot meet the search load or required features, such as typo handling, language-specific analysis or search traffic that must scale independently.",
         "caveats": [
-          "The exercise writes one ordinary SQLite row for each distinct word in each document. That makes the mechanism visible, but it can create billions of rows at large scale. Built-in database search and dedicated search engines store these relationships more compactly.",
-          "The function receives each document body as one Python string. It avoids retaining all documents at once, but one exceptionally large extracted file can still consume substantial memory. The uploads pack implements bounded byte transfer and streaming UTF-8 line extraction. PDF/OCR extraction is not implemented; this chunking lesson still starts after the body is already loaded.",
-          "Production indexing also needs update, deletion, retry and rebuild behavior. This checkpoint accepts new, unique documents only so the coding task stays focused on how the lookup is constructed."
+          "The exercise writes an ordinary SQLite row for each distinct term in each chunk. This makes the mechanism visible but can create very many rows. Built-in full-text engines use specialized index storage.",
+          "The builder receives bounded chunks, and the chunker consumes streamed words. The supplied reader rejects oversized words; title and access metadata need their own size bounds. The uploads pack implements bounded byte transfer and streaming UTF-8 line extraction. PDF/OCR is outside these local exercises.",
+          "Production indexing also needs update, deletion, retry and rebuild behavior. This checkpoint appends unique chunks with consistent document metadata; it does not resolve conflicting revisions.",
+          "Titles and access are stored once per document. The toy score still awards title points to every chunk; body-based reranking or per-document caps may produce better evidence."
         ],
         "references": [
           {
@@ -2057,13 +2082,13 @@
         ]
       },
       "implementation": {
-        "state": "The four tables already exist in storage.py. units stores source identity, title and public flag; contents stores the original body; grants stores allowed users; postings stores the word-to-unit relationships and weights. Each contents, grants or postings row refers to units.id through unit_id. In Python, retain the current SearchUnit, its two term sets, its generated database ID and a count of completed units.",
+        "state": "The supplied schema has five tables: documents stores title/public; document_access stores allowed users; chunks stores source identities; chunk_texts stores text; term_chunks links terms to chunks with weights. Retain the current chunk, its term sets, its generated database ID and a counter.",
         "trace": {
-          "caption": "Actual postings rows for d1 (units.id = 7): weight is a score contribution",
+          "caption": "term_chunks rows for source chunk 0, database ID 7",
           "headers": [
             "tenant_id",
             "term",
-            "unit_id",
+            "chunk_pk",
             "weight"
           ],
           "rows": [
@@ -2088,14 +2113,14 @@
           ]
         },
         "steps": [
-          "Start a count at zero and iterate the supplied units iterable directly. For each SearchUnit, insert tenant_id, document_id, chunk_id, title and public into the units table. Bind values with ? placeholders. SQLite generates the integer id; read it from the cursor returned by execute using cursor.lastrowid. Do not substitute the source document_id for this ID.",
-          "Use that generated ID to insert (unit_id, text) into contents. Copy the original unit.text unchanged. For each user in unit.allowed_users, insert (unit_id, user_id) into grants. An empty allowed_users set produces no grant rows; public is stored separately on units.",
-          "Call terms(unit.title) and terms(unit.text) to get distinct normalized words. For the example, these sets are {\"lease\", \"notice\"} and {\"notice\", \"period\"}. Iterate title_terms | body_terms, their set union, so notice is processed once even though it belongs to both.",
-          "For each word in that union, start its weight at zero. Add 3 if it belongs to title_terms and independently add 1 if it belongs to body_terms. Insert (unit.tenant_id, word, generated_id, weight) into postings. The table below shows the exact stored rows for d1. execute can insert one row; executemany can insert an iterable of rows.",
-          "After writing the unit’s metadata, body, grants and postings, increment the unit count and continue. A unit with no words still needs its metadata, body and any grants, and still counts as one. Empty input returns zero. Do not collect all input or all postings before writing.",
-          "Return the count when the iterable ends. Leave commit, rollback and close to the caller. For d1 alone, return 1, with one units row, one contents row and three postings rows. Writing d2 as well returns 2 and leaves five postings rows. The count measures units, not words."
+          "Iterate chunks directly. Read shared metadata from chunk.document. Insert documents using (tenant_id, document_id); ON CONFLICT DO NOTHING reuses an existing document. Metadata consistency is guaranteed by the input contract.",
+          "Insert document_access rows for its allowed_users, ignoring only duplicate access identities. Public is stored on documents. Repeated chunks must not create repeated access rows.",
+          "Insert tenant_id, document_id and chunk_id into chunks. Read cursor.lastrowid as chunk_pk and insert (chunk_pk, chunk.text) into chunk_texts without changing the text.",
+          "Use terms(chunk.document.title) and terms(chunk.text). For each term in their union, add 3 for title membership and independently 1 for text membership. Insert tenant_id, term, chunk_pk and weight into term_chunks.",
+          "Finish those writes before pulling another chunk. Count even chunks with no searchable terms. Do not accumulate all input, all terms or a set of document IDs in Python.",
+          "Return the chunk count, or zero for empty input. Leave transaction and connection ownership to the caller. Duplicate chunk identities are invalid; updates and conflicting metadata need a separate policy."
         ],
-        "result": "Append unique units and their per-term weights, one unit at a time. Return the number indexed without committing or closing the caller's connection.",
+        "result": "Append unique chunks and term weights incrementally. Store document metadata once and return the chunk count without committing or closing.",
         "decisions": [
           {
             "lead_in": "Full-text search is the feature users see. An inverted index is a common way to implement it: each word points to the matching document IDs. SQLite FTS5, PostgreSQL full-text search and dedicated search services maintain that lookup internally. This exercise writes the same relationships as ordinary SQLite rows so you can inspect them.",
@@ -2107,7 +2132,7 @@
               },
               {
                 "answer": "The primary database can handle repeated text search",
-                "action": "Use its built-in full-text index, such as SQLite FTS5 or PostgreSQL text search. The database maintains the word-to-document lookup."
+                "action": "Use its built-in full-text index, such as SQLite FTS5 or PostgreSQL text search. The database maintains the term-to-chunk lookup."
               },
               {
                 "answer": "Search needs separate features or capacity",
@@ -2124,30 +2149,30 @@
         ]
       },
       "hints": [
-        "Separate the stored document collection from the current unit's working data.",
-        "The union of title_terms and body_terms determines the rows. Membership determines each row's weight.",
-        "Use cursor.lastrowid after inserting units, then generate posting tuples for executemany."
+        "Separate document metadata from chunk identity and text. Use the database key to recognize an existing document.",
+        "The union of title_terms and text_terms determines which term_chunks rows exist; membership determines their weights.",
+        "Use cursor.lastrowid after inserting chunks. Generate term row tuples for executemany and finish them before advancing input."
       ],
       "steps": [
         "Read the schema, examples and SQL/Python notes below.",
         "Implement the target in this checkpoint's file. The supporting schema is provided.",
         "Run the real acceptance tests, then inspect a failed assertion before changing the algorithm."
       ],
-      "concept": "## Inspect the storage contract\nOpen **Models & test source** for `storage.py`: it supplies table creation. `units.id` is a generated key; `(tenant_id, document_id, chunk_id)` preserves source identity. Postings are keyed starting with tenant and term.\n\n## Bind SQL values\n```python\n# Related example; the real schema uses different table/column names.\nrow = connection.execute(\n    \"INSERT INTO labels(name) VALUES (?)\", (label,)\n)\nnew_id = row.lastrowid\n```\nThe trailing comma creates a one-item tuple. `execute` writes one row; `executemany` can consume generated row tuples. Do not format caller strings into SQL.\n\n## Build once, query many times\nThe complete README walks through the four tables, row examples and transaction ownership. The input is already unique and this task appends records; it does not implement updates/deletes.",
+      "concept": "## Supplied input\n`build_index(connection, chunks)` receives an iterator from ingestion. Each `DocumentChunk(document, chunk_id, text)` holds bounded extracted text and refers to a shared `Document`. That metadata record has no body. Tests supply chunks directly; the later chunking checkpoint teaches how to produce them from streamed words.\n\n## Follow the keys\n`documents` uses `(tenant_id, document_id)`. `chunks` adds a source `chunk_id` and a generated integer `id`. `chunk_texts` and `term_chunks` refer to that integer as `chunk_pk`. Title and public visibility live only in `documents`; allowed users live in `document_access`.\n\n## Bind SQL values\n```python\n# Related example of insertion and generated IDs:\nrow = connection.execute(\"INSERT INTO labels(name) VALUES (?)\", (label,))\nnew_id = row.lastrowid\n```\nUse bound values, including tenant and document IDs. `executemany` accepts generated row tuples. `ON CONFLICT ... DO NOTHING` can reuse a document/access identity without retaining every prior identity in Python. Do not ignore duplicate chunk errors.\n\n## Transaction ownership\nThe caller commits or rolls back. The builder appends unique chunks with consistent document metadata; it does not implement update/delete policies. The README explains the five tables and the ingestion-to-query flow.\n",
       "source": "Indexed search practice pack · build_index.py",
       "explanation": "Reference code follows the documented storage, identity and iteration contract.",
-      "starter": "\"\"\"Checkpoint 1. Read README.md. Edit this file; schema/helpers are provided.\"\"\"\nimport sqlite3\nfrom collections.abc import Iterable\nfrom models import SearchUnit\nfrom text_tools import terms\n\n\ndef build_index(connection: sqlite3.Connection, units: Iterable[SearchUnit]) -> int:\n    \"\"\"Append unique units to an initialized index and return their count.\n\n    For each unit, write units metadata, contents text, grants, and postings.\n    One posting per distinct term in title OR body: weight = 3 for title,\n    independently +1 for body. Repetition never adds weight. Use terms().\n    Posting identity is (tenant_id, term, unit_id); unit_id is units.id.\n    Store units even if their title/body have no tokens. Keep empty chunk_id\n    for whole documents. IDs are unique in input and absent from the database.\n    Process/write each unit BEFORE requesting the next. Do not list() input,\n    retain all documents/postings, or mutate input. Keep one unit's term sets.\n    Do not commit/rollback/close: the caller owns the transaction/connection.\n    Invalid duplicate identities may raise sqlite3.IntegrityError; updates,\n    deletion and version conflict handling are outside this checkpoint.\n    \"\"\"\n    raise NotImplementedError(\"Build the disk-backed inverted index\")\n",
-      "contract": "Append unique units to an initialized index and return their count.\n\nFor each unit, write units metadata, contents text, grants, and postings.\nOne posting per distinct term in title OR body: weight = 3 for title,\nindependently +1 for body. Repetition never adds weight. Use terms().\nPosting identity is (tenant_id, term, unit_id); unit_id is units.id.\nStore units even if their title/body have no tokens. Keep empty chunk_id\nfor whole documents. IDs are unique in input and absent from the database.\nProcess/write each unit BEFORE requesting the next. Do not list() input,\nretain all documents/postings, or mutate input. Keep one unit's term sets.\nDo not commit/rollback/close: the caller owns the transaction/connection.\nInvalid duplicate identities may raise sqlite3.IntegrityError; updates,\ndeletion and version conflict handling are outside this checkpoint.",
+      "starter": "\"\"\"Checkpoint 1. Read README.md. Schema and extracted chunks are supplied.\"\"\"\nimport sqlite3\nfrom collections.abc import Iterable\nfrom models import DocumentChunk\nfrom text_tools import terms\n\n\ndef build_index(connection: sqlite3.Connection, chunks: Iterable[DocumentChunk]) -> int:\n    \"\"\"Append extracted chunks to SQLite and return the number written.\n\n    Input comes from an ingestion pipeline, one bounded DocumentChunk at a time.\n    chunk.document is shared metadata, never a complete file body. Metadata for\n    the same (tenant_id, document_id) is consistent, including existing rows.\n    Store document title/public in documents and users in document_access once.\n    Store each chunk in chunks and its original text in chunk_texts.\n    Write one term_chunks row per distinct term in title OR chunk text:\n    weight = 3 for title, independently +1 for text. Use terms(); repetition\n    adds nothing. The row key is (tenant_id, term, chunk_pk); chunk_pk = chunks.id.\n    Title boosts still apply to every chunk; this is the toy 3/1 scoring rule.\n    Chunk IDs are nonempty, unique within their tenant/document, and absent\n    from the database. Store chunks even when title/text contain no tokens.\n    Write each chunk BEFORE requesting the next. Keep only current chunk term\n    sets and metadata; do not retain the entire input or a set of all documents.\n    INSERT ... ON CONFLICT DO NOTHING can reuse document/access rows on disk.\n    Do not mutate input or commit/rollback/close; the caller owns the transaction.\n    Duplicate chunks may raise sqlite3.IntegrityError. Updates, deletes and\n    conflicting document metadata are outside this initial-ingestion contract.\n    \"\"\"\n    raise NotImplementedError(\"Store chunks and their term lookup rows\")\n",
+      "contract": "Append extracted chunks to SQLite and return the number written.\n\nInput comes from an ingestion pipeline, one bounded DocumentChunk at a time.\nchunk.document is shared metadata, never a complete file body. Metadata for\nthe same (tenant_id, document_id) is consistent, including existing rows.\nStore document title/public in documents and users in document_access once.\nStore each chunk in chunks and its original text in chunk_texts.\nWrite one term_chunks row per distinct term in title OR chunk text:\nweight = 3 for title, independently +1 for text. Use terms(); repetition\nadds nothing. The row key is (tenant_id, term, chunk_pk); chunk_pk = chunks.id.\nTitle boosts still apply to every chunk; this is the toy 3/1 scoring rule.\nChunk IDs are nonempty, unique within their tenant/document, and absent\nfrom the database. Store chunks even when title/text contain no tokens.\nWrite each chunk BEFORE requesting the next. Keep only current chunk term\nsets and metadata; do not retain the entire input or a set of all documents.\nINSERT ... ON CONFLICT DO NOTHING can reuse document/access rows on disk.\nDo not mutate input or commit/rollback/close; the caller owns the transaction.\nDuplicate chunks may raise sqlite3.IntegrityError. Updates, deletes and\nconflicting document metadata are outside this initial-ingestion contract.",
       "practice_check": {
-        "question": "Using d1 and d2 above, what scores should a search for “notice period period” produce, and which stored rows contribute?",
-        "answer": "Normalize the query to the distinct words notice and period. For d1 (unit 7), the notice row contributes 4 and the period row contributes 1, for a score of 5. For d2 (unit 8), only the period row matches, for a score of 1. Repeating period in the query adds nothing. The lease and schedule rows are ignored. Access must still be checked before returning either document."
+        "question": "For the two chunks above, what scores does notice period period produce, and why?",
+        "answer": "Normalize to notice and period. Chunk d1/0 has weights 4 and 1, totaling 5. Chunk d1/1 gets 3 from notice in the shared title. Repeating period adds nothing. Both chunks inherit access from the same document."
       },
       "flow_ref": "search-index"
     },
     {
       "id": "c-index-query",
       "scenario": {
-        "prompt": "The word-to-document lookup is built. Return the best readable matches without fetching every matching document or sorting them all in Python.",
+        "prompt": "The term-to-chunk lookup is built. Return the best readable chunks without fetching their text or sorting all matches in Python.",
         "requirements": [
           "Score by adding the stored points for each distinct query word.",
           "Filter tenant and user access before the result limit.",
@@ -2177,47 +2202,47 @@
       "expected_tests": 13,
       "problem": {
         "title": "Score matches without fetching every document",
-        "problem": "The previous checkpoint stored each word’s score contribution beside the documents containing it. A query now needs a few best readable results from potentially many matches. Returning every matching row to Python and sorting there would recreate a memory bottleneck.",
+        "problem": "The term-to-chunk lookup is built. Return the best readable chunks without fetching their text or sorting all matches in Python.",
         "reasoning": [
-          "For query “lease period”, read the stored rows for those two words inside the user’s customer account. d1 contributes 3 for lease and 1 for period, totaling 4 without opening its body.",
-          "Join each match to its document metadata and check public access or a matching user grant. Group the points by searchable document or section so each result receives one score.",
-          "Let SQL order the aggregate scores and apply LIMIT. Python receives at most the requested result count; body text is loaded only if the caller needs it afterward."
+          "For query lease period, chunk d1/0 contributes 3 for lease and 1 for period, totaling 4. Chunk d1/1 contributes 3 from the shared title. The title is stored once, but this toy score applies its boost to each chunk.",
+          "Join term_chunks to chunks by chunk_pk and tenant, then to documents by tenant/document identity. Check document public access or a matching document_access row before limiting.",
+          "Group by chunks.id, sum matching weights, order by score then document_id and chunk_id, and apply SQL LIMIT. Python receives only the requested hit records. load_chunks later fetches their text and rechecks document access."
         ]
       },
       "brief": {
         "heading": "Score matches without fetching every document",
-        "scenario": "The previous checkpoint stored per-term weights on disk. A query now needs a few best readable results, potentially from many matching units. Returning all candidate rows to Python and sorting them would recreate a memory bottleneck.",
+        "scenario": "The term-to-chunk lookup is built. Return the best readable chunks without fetching their text or sorting all matches in Python.",
         "vocabulary": [
           {
             "term": "Candidate",
-            "meaning": "A unit appearing in a query term's posting list."
+            "meaning": "A chunk linked to at least one distinct query term."
           },
           {
             "term": "JOIN",
-            "meaning": "Associate a posting with its unit metadata through unit_id."
+            "meaning": "Associate term_chunks with chunks, then with shared documents metadata."
           },
           {
             "term": "GROUP BY / SUM",
-            "meaning": "Combine the matching term weights into one score per unit."
+            "meaning": "Combine matching term weights into one score per chunk."
           },
           {
             "term": "EXISTS",
-            "meaning": "Check for a user grant without multiplying score rows by the number of grants."
+            "meaning": "Check document_access for this user without multiplying score rows."
           },
           {
             "term": "SQL LIMIT",
-            "meaning": "Restrict returned result rows in the database, before Python receives them."
+            "meaning": "Restrict final rows before Python receives them; database work can still grow with matches."
           }
         ],
-        "rule": "Return the top eligible IndexedHit records using posting sums, score descending and source-ID tie-breaks. Fetch at most limit rows and never read stored bodies for scoring.",
-        "example": "For query “lease period”, request those terms' postings in the user's tenant. d1 contributes 3 for lease and 1 for period, totaling 4 without opening its body."
+        "rule": "Return the top eligible IndexedHit records using stored term weights, score descending and source-ID tie-breaks. Fetch at most limit rows and never read stored bodies for scoring.",
+        "example": "For query lease period, chunk d1/0 contributes 3 for lease and 1 for period, totaling 4. Chunk d1/1 contributes 3 from the shared title. The title is stored once, but this toy score applies its boost to each chunk."
       },
       "strategy": {
         "name": "Rank and limit matches inside the database",
-        "mechanism": "Use the stored word-to-document lookup to find matches for the query words. Check access, add each matching word's points, sort the readable matches and return only the requested number of results before transferring rows to Python.",
+        "mechanism": "Use the stored term-to-chunk lookup to find matches for the query words. Check access, add each matching word's points, sort the readable matches and return only the requested number of results before transferring rows to Python.",
         "use_case": "A search request may match many documents, but the API needs only the best twenty that the user can read. Loading and sorting every match in Python wastes memory and moves work away from the database indexes that found those matches.",
         "prompt": "“We have a term index. How do we score matches and return the best twenty without loading all matches into the app?”",
-        "recognize": "How many postings do common and selective queries match? Must permissions be current at query time? Does pagination need a stable snapshot? Which latency and relevance measurements define success?",
+        "recognize": "How many term_chunks rows do common and selective queries match? Must permissions be current at query time? Does pagination need a stable snapshot? Which latency and relevance measurements define success?",
         "proposal": "Let the database or search engine find, filter, score and limit matches before returning them to the application. Give equal scores a stable secondary order so pagination does not shuffle. Inspect the query plan and test both rare and common words: returning twenty rows does not mean the database examined only twenty.",
         "caveats": [
           "This retains the simplified 3:1 score. It does not teach BM25 term rarity/length normalization or prove the ranking is useful.",
@@ -2240,36 +2265,36 @@
         "trace": {
           "caption": "Query lease period: sum only the requested terms’ stored weights",
           "headers": [
-            "Unit",
+            "Chunk",
             "lease",
             "period",
             "Query score"
           ],
           "rows": [
             [
-              "d1",
+              "d1/0",
               "3",
               "1",
               "4"
             ],
             [
-              "d2 (period only)",
+              "d1/1",
+              "3",
               "0",
-              "1",
-              "1"
+              "3"
             ]
           ]
         },
         "steps": [
           "Validate limit in 1..100 before empty-query handling. Normalize distinct query terms; no terms means [].",
-          "Select matching postings by tenant and term and join units. Check tenant and public OR EXISTS(user grant) before limiting.",
-          "GROUP BY the unit ID, SUM matching weights and ORDER BY score DESC, document_id ASC, chunk_id ASC.",
-          "Apply SQL LIMIT and convert only those result rows to IndexedHit. Do not tokenize contents, fetch all candidates or sort candidate objects in Python."
+          "Select term_chunks by tenant and term. Join chunks on chunk_pk/id and tenant, then documents on tenant/document identity. Check public OR EXISTS in document_access.",
+          "GROUP BY chunks.id, SUM weights, ORDER BY score DESC, document_id ASC, chunk_id ASC. The chunk tie-break is lexicographic, as its ID is a string.",
+          "Apply SQL LIMIT and convert only returned rows to IndexedHit. Do not read chunk_texts or sort all candidates in Python."
         ],
-        "result": "Return the top eligible IndexedHit records using posting sums, score descending and source-ID tie-breaks. Fetch at most limit rows and never read stored bodies for scoring.",
+        "result": "Return the top eligible IndexedHit records using stored term weights, score descending and source-ID tie-breaks. Fetch at most limit rows and never read stored bodies for scoring.",
         "decisions": [
           {
-            "lead_in": "The exercise stores one word-to-document row, called a posting, for each distinct word in a searchable document. SQLite can jump to rows for the requested customer and words. It may still process many rows for a common word; LIMIT controls how many final results it returns, not how much work it performs.",
+            "lead_in": "The term_chunks table links each word to matching chunks. SQLite can look up a tenant and term through its primary-key index. Common words may still match many rows; SQL LIMIT controls final result transfer, not total work.",
             "question": "What does the memory limit actually cover?",
             "branches": [
               {
@@ -2292,7 +2317,7 @@
       },
       "hints": [
         "The score already exists as per-term weights. You need to add matching weights, not re-read bodies.",
-        "Use EXISTS for allowed_users; joining every grant can multiply contributions.",
+        "Use EXISTS against document_access; joining every allowed user can multiply contributions.",
         "Generate only the IN placeholder syntax and bind the values. Put GROUP BY, ORDER BY and LIMIT in SQL."
       ],
       "steps": [
@@ -2300,11 +2325,11 @@
         "Implement the target in this checkpoint's file. The supporting schema is provided.",
         "Run the real acceptance tests, then inspect a failed assertion before changing the algorithm."
       ],
-      "concept": "## Read the query as a pipeline\n`WHERE` chooses tenant/term matches and permitted units. `GROUP BY` unit ID gathers their contributions; `SUM(weight)` computes a score. `ORDER BY` and `LIMIT` choose the returned page.\n\n```sql\n-- Related example of aggregation and ordering, not the exercise query:\nSELECT account_id, SUM(amount) AS total\nFROM payments\nWHERE currency = ?\nGROUP BY account_id\nORDER BY total DESC, account_id ASC\nLIMIT ?\n```\nFor the real query, join `postings` to `units` by unit ID and use `EXISTS` for grants. Read the README for the rationale and exact input contract. Inputs have at most 32 distinct query terms.\n\n## Why a cursor is useful\n`connection.execute(sql, parameters)` returns an iterable cursor. With a LIMIT in SQL, converting its rows to result records transfers only the final page. Iterating every candidate into a Python dictionary would still grow with the match count.",
+      "concept": "## Read the query as a pipeline\nFilter `term_chunks` on tenant and distinct query terms. Join `chunks` by `chunk_pk = id` and tenant, then `documents` by tenant/document. Enforce document access before the result limit. Group weights by chunk, sort by score and source IDs, and apply LIMIT in SQLite.\n\n```sql\n-- Related aggregation example:\nSELECT account_id, SUM(amount) AS total\nFROM payments\nWHERE currency = ?\nGROUP BY account_id\nORDER BY total DESC, account_id ASC\nLIMIT ?\n```\nFor the exercise, use `EXISTS` against `document_access` to avoid multiplying score contributions by allowed-user count. All caller values must be bound parameters; generate only placeholder syntax for the IN list (at most 32 distinct terms).\n\n## What stays out of Python\nIterate the SQL-limited cursor into IndexedHit records. Do not read chunk_texts during ranking. Common terms can still require substantial database grouping and sorting. Later, load_chunks fetches the selected text in rank order and rechecks document permissions.\n",
       "source": "Indexed search practice pack · search_index.py",
       "explanation": "Reference code follows the documented storage, identity and iteration contract.",
-      "starter": "\"\"\"Checkpoint 2. Query the provided schema; tests seed it independently.\"\"\"\nimport sqlite3\nfrom models import IndexedHit\nfrom text_tools import terms\n\n\ndef search_index(connection: sqlite3.Connection, query: str, *,\n                 tenant_id: str, user_id: str, limit: int = 20) -> list[IndexedHit]:\n    \"\"\"Rank from postings, without loading document bodies into Python.\n\n    Validate integer limit in 1..100 first, even for an empty query.\n    Normalize query once with terms(). Empty terms -> []. Inputs have at most\n    32 distinct terms. Query terms are OR matches, each contributes once.\n    Filter tenant and (public OR user grant) before the result limit.\n    Sum posting weights per unit. Return positive-scoring hits ordered by\n    score DESC, document_id ASC, chunk_id ASC, taking limit LAST in SQL.\n    Use parameter binding, never interpolate user strings into SQL.\n    Execute ranking/aggregation/limiting in SQLite. Read at most limit result\n    rows into Python; do not fetch all candidates and sort them in Python.\n    Do not read contents or tokenize stored text; postings hold the scores.\n    Do not modify, commit, rollback, or close the connection.\n    Categories are deliberately out of scope in this pack.\n    \"\"\"\n    raise NotImplementedError(\"Retrieve and score indexed matches\")\n",
-      "contract": "Rank from postings, without loading document bodies into Python.\n\nValidate integer limit in 1..100 first, even for an empty query.\nNormalize query once with terms(). Empty terms -> []. Inputs have at most\n32 distinct terms. Query terms are OR matches, each contributes once.\nFilter tenant and (public OR user grant) before the result limit.\nSum posting weights per unit. Return positive-scoring hits ordered by\nscore DESC, document_id ASC, chunk_id ASC, taking limit LAST in SQL.\nUse parameter binding, never interpolate user strings into SQL.\nExecute ranking/aggregation/limiting in SQLite. Read at most limit result\nrows into Python; do not fetch all candidates and sort them in Python.\nDo not read contents or tokenize stored text; postings hold the scores.\nDo not modify, commit, rollback, or close the connection.\nCategories are deliberately out of scope in this pack.",
+      "starter": "\"\"\"Checkpoint 2. Query the provided schema; tests seed it independently.\"\"\"\nimport sqlite3\nfrom models import IndexedHit\nfrom text_tools import terms\n\n\ndef search_index(connection: sqlite3.Connection, query: str, *,\n                 tenant_id: str, user_id: str, limit: int = 20) -> list[IndexedHit]:\n    \"\"\"Rank chunks from term_chunks without loading their text into Python.\n\n    Validate integer limit in 1..100 first, even for an empty query.\n    Normalize query once with terms(). Empty terms -> []. Inputs have at most\n    32 distinct terms. Query terms are OR matches, each contributes once.\n    Filter tenant and (document public OR document_access for user) before the result limit.\n    Sum matching term_chunks weights per chunk. Return positive-scoring hits ordered by\n    score DESC, document_id ASC, chunk_id ASC, taking limit LAST in SQL.\n    Use parameter binding, never interpolate user strings into SQL.\n    Execute ranking/aggregation/limiting in SQLite. Read at most limit result\n    rows into Python; do not fetch all candidates and sort them in Python.\n    Do not read chunk_texts or tokenize stored text; term_chunks holds weights.\n    Join chunks to documents for title/access; title is stored once per document.\n    Do not modify, commit, rollback, or close the connection.\n    Categories are deliberately out of scope in this pack.\n    \"\"\"\n    raise NotImplementedError(\"Retrieve and score indexed matches\")\n",
+      "contract": "Rank chunks from term_chunks without loading their text into Python.\n\nValidate integer limit in 1..100 first, even for an empty query.\nNormalize query once with terms(). Empty terms -> []. Inputs have at most\n32 distinct terms. Query terms are OR matches, each contributes once.\nFilter tenant and (document public OR document_access for user) before the result limit.\nSum matching term_chunks weights per chunk. Return positive-scoring hits ordered by\nscore DESC, document_id ASC, chunk_id ASC, taking limit LAST in SQL.\nUse parameter binding, never interpolate user strings into SQL.\nExecute ranking/aggregation/limiting in SQLite. Read at most limit result\nrows into Python; do not fetch all candidates and sort them in Python.\nDo not read chunk_texts or tokenize stored text; term_chunks holds weights.\nJoin chunks to documents for title/access; title is stored once per document.\nDo not modify, commit, rollback, or close the connection.\nCategories are deliberately out of scope in this pack.",
       "flow_ref": "search-index"
     },
     {
@@ -2360,7 +2385,8 @@
         "caveats": [
           "The exercise accepts English letters and digits and requires all query words. It does not provide typo correction, stemming (treating reset and resetting as related), or meaning-based search.",
           "The database is already selected for one customer. Choosing that database and authenticating user_id are outside the task; they must be trusted in a real service.",
-          "FTS5's default relevance uses statistics across this customer's articles, including private ones. Filtering hides private rows but does not isolate their influence on ranking. Scores are not probabilities or the earlier exercise's 3/1 points."
+          "FTS5's default relevance uses statistics across this customer's articles, including private ones. Filtering hides private rows but does not isolate their influence on ranking. Scores are not probabilities or the earlier exercise's 3/1 points.",
+          "This query exercise starts with an existing database. The supplied Article fixtures contain complete article bodies; they demonstrate short support articles, not streaming ingestion of large files. SQL LIMIT bounds returned rows, not setup memory or total ranking work."
         ],
         "references": [
           {
@@ -2497,11 +2523,19 @@
     {
       "id": "c-chunking",
       "flow_ref": "rag-context",
-      "scenario": {"prompt":"Search found a long document. Split its text into smaller searchable units while retaining where each unit came from.","requirements":["Yield at most max_words whitespace-delimited words per chunk.","Preserve source IDs, title, case, punctuation and access metadata.","Keep a bounded word buffer. Chunk numbering restarts for each document."],"deliverable":"Yield SearchUnits that the existing index can store and rank."},
+      "scenario": {
+        "prompt": "An ingestion reader yields words from files that may be larger than memory. Group those words into bounded, identified chunks that the existing index builder can consume.",
+        "requirements": [
+          "Consume each source word iterator once; yield immediately at max_words without reading ahead.",
+          "Keep shared document metadata and number chunks from 0 within each document.",
+          "Preserve word case/punctuation, join with single spaces, and flush the final short chunk."
+        ],
+        "deliverable": "Yield DocumentChunk records from ExtractedDocument metadata and word streams."
+      },
       "track": "core",
       "kind": "code",
       "title": "Turn long files into searchable sections",
-      "summary": "Indexed file search can return a useful document that is too long for a model request.",
+      "summary": "Group streamed source words before indexing, without constructing a complete file body.",
       "pack": "indexed",
       "file": "chunk_documents.py",
       "workspace": "indexed/chunk_documents.py",
@@ -2520,16 +2554,17 @@
       "expected_tests": 7,
       "problem": {
         "title": "Turn long files into searchable sections",
-        "problem": "Indexed file search can return a useful document that is too long for a model request. You need smaller search units that keep their parent document identity, so you can rank sections and still produce correct references.",
+        "problem": "An ingestion reader yields words from files that may be larger than memory. Group those words into bounded, identified chunks that the existing index builder can consume.",
         "reasoning": [
-          "A five-word body and a two-word chunk size produce chunks '0': words 1–2, '1': words 3–4 and '2': word 5. Each carries the original document ID and access metadata.",
-          "Feed that chunk iterator to the existing index builder. The same stored word-to-section rows and query can now rank sections; document ID alone is no longer a unique result identity.",
-          "Pass the top hits to load_chunks to fetch only their text in rank order. Those section records are the input to the next context-budget exercise."
+          "An ExtractedDocument contains Document metadata and a one-pass words iterator. The supplied iter_words reader reads plain text in bounded blocks and carries a partial word across reads. It never needs a complete body string.",
+          "For one two three four five and max_words=2, yield chunk 0: one two, chunk 1: three four, chunk 2: five. Every chunk refers to the same Document metadata.",
+          "Yield as soon as the buffer fills, before asking for the next word. Finish and flush this document before reading the next. The builder can therefore persist each chunk as ingestion produces it.",
+          "Run demo.py to read local files incrementally, chunk and index them, search the stored term rows, and load only ranked text for context selection. The runtime order is reader, chunker, builder, query, text loading. The lessons teach builder/query first using supplied chunks."
         ]
       },
       "brief": {
         "heading": "Turn long files into searchable sections",
-        "scenario": "Indexed file search can return a useful document that is too long for a model request. You need smaller search units that keep their parent document identity, so you can rank sections and still produce correct references.",
+        "scenario": "An ingestion reader yields words from files that may be larger than memory. Group those words into bounded, identified chunks that the existing index builder can consume.",
         "vocabulary": [
           {
             "term": "Chunk ID",
@@ -2548,20 +2583,21 @@
             "meaning": "Tenant, document and chunk IDs retained through indexing, retrieval and citations."
           }
         ],
-        "rule": "Yield SearchUnits of at most max_words whitespace words, preserving source identity, title and access. Keep only a bounded word buffer and do not prefetch later documents.",
-        "example": "A five-word body and a two-word chunk size produce chunks '0': words 1–2, '1': words 3–4 and '2': word 5. Each carries the original document ID and access metadata."
+        "rule": "Group one-pass source words into chunks of at most max_words, retaining shared metadata and source order without prefetching.",
+        "example": "For one two three four five and max_words=2, yield chunk 0: one two, chunk 1: three four, chunk 2: five. Every chunk refers to the same Document metadata."
       },
       "strategy": {
         "name": "Split long documents without losing their source",
-        "mechanism": "Split a long document into sections that search can return independently. Attach the document ID, section ID and access information to every section so later citations still point to the right source.",
-        "use_case": "Indexed file search can return a useful document that is too long for a model request. You need smaller search units that keep their parent document identity, so you can rank sections and still produce correct references.",
+        "mechanism": "During ingestion, consume extracted words in order and emit a bounded chunk whenever the word buffer fills. Each chunk refers to shared document metadata and has its own source ID. The builder stores document metadata once and indexes each chunk as it arrives.",
+        "use_case": "An ingestion reader yields words from files that may be larger than memory. Group those words into bounded, identified chunks that the existing index builder can consume.",
         "prompt": "“Search found a useful 200-page file. How do we retrieve the useful sections and keep references to their origin?”",
         "recognize": "Which boundaries preserve meaning in these documents? What size fits retrieval and the downstream model? Is overlap needed? How will citations survive edits, rechunking and permission changes?",
         "proposal": "Prefer natural boundaries such as headings or paragraphs. Choose section size by testing real questions. If evidence is often split at boundaries, repeat a small amount of text at the end of one section and the start of the next. Store the document version and source positions so a citation identifies the exact text it used. Keeping an old citation resolvable also requires retaining that version or mapping the reference to retained content. Fixed-size word groups are a useful baseline, but they can split a sentence or separate related evidence.",
         "caveats": [
           "Fixed windows can break sentences or separate evidence. Changing chunk size, adding overlap or respecting sections changes retrieval quality and duplication.",
           "Chunk numbering is stable only for the same text and policy. Edits can shift positions; production references need versioned IDs or source offsets.",
-          "Copying the file title onto every chunk repeats its title signal. Several weak-body chunks may tie; consider body-specific scoring/reranking and per-document caps."
+          "Normalizing title storage does not remove repeated title boosts in the toy score. Several chunks can match only the title; body-based reranking and per-document caps address different parts of that problem.",
+          "The supplied plain-text reader bounds read blocks and rejects words longer than max_word_chars. Custom extractors must bound their own words and buffers. PDF/OCR and sentence-aware chunk boundaries are outside this contract."
         ],
         "references": [
           {
@@ -2575,26 +2611,26 @@
         ]
       },
       "implementation": {
-        "state": "Keep the current source Document, a list of at most max_words words, and the current document's chunk number.",
+        "state": "Keep the current ExtractedDocument metadata, at most max_words source words, and a chunk counter. Source words arrive from an iterator; no full body string is held.",
         "steps": [
-          "Validate max_words before consuming documents. Iterate documents once and use re.finditer on the current body's non-whitespace spans.",
-          "Append matched words to the small buffer. When it reaches max_words, yield a SearchUnit with joined text and copied metadata, then reset the buffer and increment the chunk number.",
-          "Flush a final short buffer; skip blank bodies and reset numbering for the next document.",
-          "After solving the three checkpoints, run demo.py. It builds separate whole-document/chunk indexes and fetches ranked chunks ready for build_context."
+          "Validate max_words before consuming documents. For each ExtractedDocument, iterate source.words directly.",
+          "Append each word. When the buffer reaches max_words, yield DocumentChunk(source.document, chunk_id, joined_text) before requesting another word, then clear the buffer and increment the counter.",
+          "Flush a final short chunk. Empty word streams produce no chunks. Reset numbering for the next document.",
+          "Feed the iterator to build_index during ingestion. Tests isolate chunking; demo.py combines the reader, chunker, builder, query and context adapter."
         ],
-        "result": "Yield SearchUnits of at most max_words whitespace words, preserving source identity, title and access. Keep only a bounded word buffer and do not prefetch later documents.",
+        "result": "Group one-pass source words into chunks of at most max_words, retaining shared metadata and source order without prefetching.",
         "decisions": [
           {
-            "lead_in": "The source Document still contains its full body string. A generator avoids retaining every chunk of every document, but does not make the current source string disappear.",
-            "question": "Which allocation are you avoiding?",
+            "lead_in": "Bounding the number of words alone does not bound bytes if a single word can grow without limit. The supplied reader caps both its read block and word length. Its output is the input to this chunker.",
+            "question": "Which input guarantees make the memory bound useful?",
             "branches": [
               {
-                "answer": "All chunks or all words at once",
-                "action": "Use re.finditer and yield a chunk as soon as the small buffer fills."
+                "answer": "Plain text with bounded words",
+                "action": "Use iter_words with read_chars and max_word_chars, then retain at most max_words words in the chunker."
               },
               {
-                "answer": "An enormous single source file",
-                "action": "That needs a streaming extractor/input API too. It is outside this function's Document-string contract and must not be claimed as solved."
+                "answer": "PDF, OCR or an unbroken oversized field",
+                "action": "Choose an extractor and an explicit rejection or splitting policy. The word-grouping function cannot bound upstream parser memory."
               }
             ]
           }
@@ -2607,20 +2643,20 @@
         ]
       },
       "hints": [
-        "Keep document identity separate from chunk position; copy permissions onto every output.",
-        "Use re.finditer(r'\\S+', text) so you do not allocate all split words.",
-        "Yield when the buffer fills, and remember to yield the final short buffer after the loop."
+        "Separate shared source.document metadata from source.words, the one-pass input iterator.",
+        "Keep a small word list and a counter. Yield before pulling another word once the list reaches max_words.",
+        "Flush the final short buffer and reset the chunk counter for each document."
       ],
       "steps": [
         "Read the schema, examples and SQL/Python notes below.",
         "Implement the target in this checkpoint's file. The supporting schema is provided.",
         "Run the real acceptance tests, then inspect a failed assertion before changing the algorithm."
       ],
-      "concept": "## Iterator mechanics\nA function containing `yield` returns an iterator. The caller pulls the next value with `next()` or a `for` loop. Locals remain available between yields.\n\n```python\n# Related example: consume matched spans without allocating a full split list.\nfor match in re.finditer(r\"\\S+\", text):\n    word = match.group()\n```\nHere a word is a whitespace-delimited span, unlike the lowercased letter/digit tokens used for scoring. Chunk text preserves case and punctuation; indexing later applies `terms()`.\n\n## Connect the steps\n```python\nunits = chunk_documents(documents, max_words=200)\nwith connection:\n    build_index(connection, units)\nhits = search_index(connection, query, tenant_id=tenant, user_id=user)\nchunks = load_chunks(connection, hits, tenant_id=tenant, user_id=user)\n```\nThese calls belong together after you solve the checkpoints. Tests for this checkpoint isolate chunking; `demo.py` exercises the combined pipeline. The next exercise consumes `chunks` and constructs limited, cited context.",
+      "concept": "## The input has no full body\n`ExtractedDocument(document, words)` pairs metadata with a one-pass iterator of nonempty whitespace-delimited words. The supplied `iter_words(text_stream)` reader preserves case and punctuation across bounded reads. Its `max_word_chars` limit rejects an oversized word rather than retaining it indefinitely.\n\n## Iterator mechanics\nA function containing `yield` returns an iterator. Its local buffer and counter survive between requests. Yield a full chunk before requesting another word; otherwise a slow or failing source delays text that is already ready.\n\n```python\n# Related example: consume values one at a time.\nfor value in source_values:\n    yield transform(value)\n```\n\n## Runtime order\n```python\nchunks = chunk_documents(extracted_documents, max_words=200)\nwith connection:\n    build_index(connection, chunks)\nhits = search_index(connection, query, tenant_id=tenant, user_id=user)\nranked_chunks = load_chunks(connection, hits, tenant_id=tenant, user_id=user)\n```\nThe first lessons supply chunks so you can learn storage and querying independently. This lesson implements their upstream producer. The context exercise consumes ranked_chunks. The demo owns file lifetimes while the iterators run; PDF/OCR extraction is not supplied.\n",
       "source": "Indexed search practice pack · chunk_documents.py",
       "explanation": "Reference code follows the documented storage, identity and iteration contract.",
-      "starter": "\"\"\"Checkpoint 3. Make independently searchable text units with source IDs.\"\"\"\nimport re\nfrom collections.abc import Iterable, Iterator\nfrom models import Document, SearchUnit\n\n\ndef chunk_documents(documents: Iterable[Document], *, max_words: int) -> Iterator[SearchUnit]:\n    r\"\"\"Yield bounded, non-overlapping chunks in document/word order.\n\n    max_words is an int; raise ValueError if <1 before consuming documents\n    (validation may occur when iteration starts). Words are whitespace-delimited\n    spans; preserve their text/case/punctuation, join with single spaces.\n    Skip blank bodies. Number each document's chunks '0', '1', ... .\n    Copy tenant, document ID, title, public and allowed_users into every unit.\n    Yield as soon as max_words words are buffered; flush a final short chunk.\n    Do not read the next document before yielding this one's chunks. Do not\n    split/list the entire document collection or entire document body; use re.finditer(r'\\S+',\n    document.text) to buffer at most max_words matched words at a time.\n    A Document already contains its body string. This limits extra chunking\n    memory, not the size of that source string or of an individual huge word.\n    \"\"\"\n    raise NotImplementedError(\"Yield searchable chunks with provenance\")\n",
-      "contract": "Yield bounded, non-overlapping chunks in document/word order.\n\nmax_words is an int; raise ValueError if <1 before consuming documents\n(validation may occur when iteration starts). Words are whitespace-delimited\nspans; preserve their text/case/punctuation, join with single spaces.\nSkip blank bodies. Number each document's chunks '0', '1', ... .\nCopy tenant, document ID, title, public and allowed_users into every unit.\nYield as soon as max_words words are buffered; flush a final short chunk.\nDo not read the next document before yielding this one's chunks. Do not\nsplit/list the entire document collection or entire document body; use re.finditer(r'\\S+',\ndocument.text) to buffer at most max_words matched words at a time.\nA Document already contains its body string. This limits extra chunking\nmemory, not the size of that source string or of an individual huge word."
+      "starter": "\"\"\"Checkpoint 3. Group streamed source words into searchable chunks.\"\"\"\nfrom collections.abc import Iterable, Iterator\nfrom models import DocumentChunk, ExtractedDocument\n\n\ndef chunk_documents(documents: Iterable[ExtractedDocument], *,\n                    max_words: int) -> Iterator[DocumentChunk]:\n    \"\"\"Yield bounded chunks from one-pass word iterators, in source order.\n\n    max_words is an int; raise ValueError if <1 before consuming documents\n    (validation may occur when iteration starts). Each source supplies shared\n    Document metadata and words: nonempty whitespace-delimited strings with\n    case/punctuation intact. The supplied iter_words() reader limits word size.\n    Retain at most max_words words. Join them with single spaces and yield\n    immediately when full, BEFORE requesting another word. Flush a final short\n    chunk. Skip empty word streams. Number chunks '0', '1', ... per document.\n    Each DocumentChunk refers to the source Document; do not copy title/access\n    into new per-chunk metadata or buffer the entire source/word iterator.\n    Finish this document before requesting the next. Do not mutate inputs.\n    With bounded source words, memory is independent of total file size/count.\n    File decoding, PDF/OCR and sentence-aware boundaries are outside this task.\n    \"\"\"\n    raise NotImplementedError(\"Group streamed words into identified chunks\")\n",
+      "contract": "Yield bounded chunks from one-pass word iterators, in source order.\n\nmax_words is an int; raise ValueError if <1 before consuming documents\n(validation may occur when iteration starts). Each source supplies shared\nDocument metadata and words: nonempty whitespace-delimited strings with\ncase/punctuation intact. The supplied iter_words() reader limits word size.\nRetain at most max_words words. Join them with single spaces and yield\nimmediately when full, BEFORE requesting another word. Flush a final short\nchunk. Skip empty word streams. Number chunks '0', '1', ... per document.\nEach DocumentChunk refers to the source Document; do not copy title/access\ninto new per-chunk metadata or buffer the entire source/word iterator.\nFinish this document before requesting the next. Do not mutate inputs.\nWith bounded source words, memory is independent of total file size/count.\nFile decoding, PDF/OCR and sentence-aware boundaries are outside this task."
     },
     {
       "id": "q-context",
@@ -2645,14 +2681,14 @@
               },
               {
                 "answer": "You only have raw document text",
-                "action": "Raw text must first be indexed. In the preceding checkpoints, stream document/chunk units into a local SQLite file, then query stored term weights. The tiny set-intersection example below explains the score calculation only; it is not a prescription to load all source documents into memory."
+                "action": "Raw text must first be indexed. In the preceding checkpoints, stream bounded DocumentChunk records into a local SQLite file, then query stored term weights. The tiny set-intersection example below explains the score calculation only; it is not a prescription to load all source documents into memory."
               },
               {
                 "answer": "You want richer retrieval",
                 "action": "A lexical search engine can rank by BM25; an embedding retriever can rank by vector similarity. A reranker can rescore retrieved query/chunk pairs. These methods create the order consumed by selection; choosing and evaluating them is separate from fitting chunks into a budget."
               }
             ],
-            "lead_in": "The preceding indexed-search checkpoints build term-to-unit rows in SQLite, sum matching weights for a query, and return the highest-scoring eligible units. The chunking checkpoint changes those units from whole documents to document sections. load_chunks fetches the returned sections in that score order. This exercise continues from that ranked list and decides which chunks fit in the request."
+            "lead_in": "The preceding indexed-search checkpoints store term-to-chunk rows in SQLite, sum matching weights and return the highest-scoring readable chunks. The chunking checkpoint implements the upstream producer that groups streamed source words before indexing. load_chunks fetches the returned sections in that score order. This exercise continues from that ranked list and decides which chunks fit in the request."
           },
           {
             "question": "Keeping, splitting or summarizing an oversized chunk",
@@ -2731,11 +2767,11 @@
           },
           {
             "id": "c-chunking",
-            "text": "Split documents into searchable units and use load_chunks to pass ranked text into this context-selection stage."
+            "text": "Group streamed words into searchable chunks and use load_chunks to pass ranked text into this context-selection stage."
           }
         ],
         "ranking_code": "query_terms = {\"lease\", \"notice\"}\n# Each chunk has already been converted to unique lowercase words.\nchunk_terms = [\n    (\"A\", {\"lease\", \"notice\", \"period\"}),\n    (\"B\", {\"lease\", \"agreement\"}),\n    (\"C\", {\"notice\", \"deadline\"}),\n]\n\nranked = [\n    (chunk_id, len(query_terms & words))\n    for chunk_id, words in chunk_terms\n]\nranked.sort(key=lambda item: (-item[1], item[0]))\nprint(ranked)  # [('A', 2), ('B', 1), ('C', 1)]",
-        "ranking_note": "Here & finds shared query words, len counts them, and the sort key puts the highest count first. The chunk ID breaks ties. These toy scores produce A, B, C, the order used by the selection example below. The selection loop uses size, not score, to decide whether each chunk fits. This three-item example explains the scoring arithmetic. For a large collection, c-index-query performs the corresponding aggregation and limiting in SQLite using prebuilt postings, rather than constructing chunk_terms for the whole document collection in Python.",
+        "ranking_note": "Here & finds shared query words, len counts them, and the sort key puts the highest count first. The chunk ID breaks ties. These toy scores produce A, B, C, the order used by the selection example below. The selection loop uses size, not score, to decide whether each chunk fits. This three-item example explains the scoring arithmetic. For a large collection, c-index-query performs the corresponding aggregation and limiting in SQLite using prebuilt term-to-chunk rows, rather than constructing chunk_terms for the whole document collection in Python.",
         "ranking_reference": {
           "title": "Ranking and reranking in a search engine",
           "url": "https://www.elastic.co/docs/solutions/search/ranking"
@@ -2866,7 +2902,7 @@
           },
           {
             "id": "c-chunking",
-            "text": "Split documents into searchable units and use load_chunks to pass ranked text into this context-selection stage."
+            "text": "Group streamed words into searchable chunks and use load_chunks to pass ranked text into this context-selection stage."
           }
         ]
       },
@@ -2889,7 +2925,8 @@
         "caveats": [
           "This greedy rule is not a globally optimal relevance or coverage optimizer. A large early chunk can displace several collectively more useful chunks.",
           "The exercise counts words. A model needs a token budget covering instructions, history, sources and output.",
-          "A correct source ID does not prove that the generated claim is supported. Evaluate attribution and answer correctness separately."
+          "A correct source ID does not prove that the generated claim is supported. Evaluate attribution and answer correctness separately.",
+          "The word budget bounds selected text, not all working memory. The seen set grows with visible nonempty chunk identities, including chunks skipped for size. Each incoming chunk must already have bounded text; the indexed path supplies a limited ranked set."
         ],
         "references": [
           {
@@ -3387,7 +3424,8 @@
         "caveats": [
           "Provider scores may use incompatible scales. The exercise assumes comparable scores; a real system may need calibration or rank-based fusion.",
           "Per-call timeouts do not bound queue wait or the entire request. Add an overall deadline where needed.",
-          "A cap in one process does not limit the combined traffic from every running service instance. Consider downstream quotas and all service replicas."
+          "A cap in one process does not limit the combined traffic from every running service instance. Consider downstream quotas and all service replicas.",
+          "This exercise creates one task per source and retains source hit lists plus merged results. The semaphore bounds active calls only; source count and returned hit volume still determine memory demand. Sources must enforce their own access scope."
         ],
         "references": [
           {
@@ -3470,7 +3508,19 @@
       "scenario": {"prompt":"JSON messages arrive in arbitrary text pieces. A read may split a message or contain several complete messages.","requirements":["A newline ends a message; blank lines are ignored.","Validate type and value, then yield a completed event immediately.","Handle the final line at end of input. Preserve events already yielded before a later error."],"deliverable":"Yield StreamEvent records without buffering the entire stream."},
       "implementation": {"state":"Keep one unfinished text buffer and parse_line logic that validates a complete JSON record.","steps":["Append each received string to the buffer. While it contains a newline, split off the first complete line and retain the rest.","Ignore blank lines. Decode each nonblank line as JSON, require exactly type and value, check their permitted values/types, and yield StreamEvent immediately.","At clean end of input, parse the final nonblank remainder even without a newline. Raise InvalidStreamEvent for invalid data; do not undo events already yielded.","Do not read more input when a complete buffered event is already ready to yield."],"result":"Each valid message is emitted once regardless of how transport reads divide the text.","decisions":[{"question":"Does one received string equal one message?","branches":[{"answer":"Guaranteed by a different protocol","action":"Validate that complete message directly, according to that protocol."},{"answer":"Not here","action":"Find newline message boundaries yourself; neither a partial JSON string nor multiple JSON lines can be passed blindly to one json.loads call."}],"lead_in":"This protocol ends each JSON message with a newline. A received string is just a piece of the incoming stream: it may end before that newline or contain several newlines. Message boundaries therefore come from the protocol, not from how much text one read returned."}]},
       "problem": {"title":"The network splits a message in half","problem":"A streaming response contains JSON messages, but each received text piece can contain half a message or several messages at once. Parsing every received piece as a complete JSON object fails unpredictably.","reasoning":["The first received string is the beginning of a JSON object, with no terminating newline. Keep it in the unfinished buffer.","The next string completes that object and includes a newline. Parse and yield the complete line; keep any following partial line in the buffer.","If one received string contains three complete lines, yield three events. The number of input reads and the number of messages need not match."]},
-      "strategy": {"name":"Incremental framing and validation","mechanism":"A network read may contain half a message or several messages. Keep the unfinished text, split only at the protocol’s newline separator, and emit each complete validated message promptly.","use_case":"A client reads streaming JSON over a network where one read can split a message or combine several messages.","prompt":"“Our streaming consumer works locally but fails when the network splits messages differently. How would you fix it?”","recognize":"How does the protocol mark the end of a message? Can one read split or combine messages? What should happen to a final line without a newline, or to messages already emitted before an error?","proposal":"Keep a small unfinished buffer, extract complete newline-delimited messages, validate each frame and yield it. Define end-of-stream and malformed-message behavior without retracting previously emitted results.","caveats":["A stream with no delimiter can grow the buffer indefinitely. Production parsers need a maximum frame size and a failure policy.","This input is already decoded text. The exercise starts after bytes have been decoded into text. A production client must also limit how quickly data arrives so its buffer cannot grow without bound, and it needs network timeouts."],"references":[]},
+      "strategy": {
+        "name": "Incremental framing and validation",
+        "mechanism": "A network read may contain half a message or several messages. Keep the unfinished text, split only at the protocol’s newline separator, and emit each complete validated message promptly.",
+        "use_case": "A client reads streaming JSON over a network where one read can split a message or combine several messages.",
+        "prompt": "“Our streaming consumer works locally but fails when the network splits messages differently. How would you fix it?”",
+        "recognize": "How does the protocol mark the end of a message? Can one read split or combine messages? What should happen to a final line without a newline, or to messages already emitted before an error?",
+        "proposal": "Keep a small unfinished buffer, extract complete newline-delimited messages, validate each frame and yield it. Define end-of-stream and malformed-message behavior without retracting previously emitted results.",
+        "caveats": [
+          "A stream with no delimiter can grow the buffer indefinitely. Production parsers need a maximum frame size and a failure policy.",
+          "Input is decoded text fragments, not document chunks or complete JSON events. The unfinished line and largest supplied fragment determine memory. Byte decoding, bounded network reads and network timeouts belong to the caller."
+        ],
+        "references": []
+      },
       "brief": {"heading":"Rebuild messages from arbitrary pieces","scenario":"A transport delivers text in pieces. Your parser must emit complete JSON messages as soon as they are available.","vocabulary":[{"term":"NDJSON","meaning":"Newline-delimited JSON: one JSON object per line."},{"term":"Input chunk","meaning":"A received piece of text, which may split a message or contain several."},{"term":"Schema","meaning":"The required keys and value types for each message."},{"term":"EOF","meaning":"End of input; the last line may lack a newline."}],"rule":"Buffer only incomplete text. A completed valid line can be yielded without requesting more input.","example":"Receiving half a JSON line is not an error yet. A newline tells you the message is ready to parse."},
       "track": "async",
       "kind": "code",

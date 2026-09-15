@@ -88,7 +88,7 @@ def lesson_payload(lesson, store):
             number=lesson['file'].split('round')[1][:2]
             names += [str(path.relative_to(directory)) for path in (directory/'prompts').glob(number+'*.md')]
         elif lesson['pack']=='indexed':
-            names=['README.md','models.py','storage.py','text_tools.py','demo.py']
+            names=['README.md','models.py','storage.py','source_words.py','text_tools.py','demo.py']
         elif lesson['pack']=='uploads':
             names=['README.md','models.py','storage.py','indexing.py','demo.py']
         elif lesson['pack']=='fts':

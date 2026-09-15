@@ -41,3 +41,11 @@ Are scores from different real search systems comparable? Should partial failure
 be silent? Where would permissions be enforced in the real fan-out path? What is
 the difference between limiting active work and limiting the number of queued tasks?
 How would you handle a provider rate limit shared across replicas?
+
+## Input and memory boundary
+
+`sources` maps backend names to callables that return document candidates. Each
+source owns retrieval and its access scope. The semaphore limits active calls;
+one task per source and the returned hit lists still consume memory. This
+exercise assumes a bounded set of sources and comparable scores, not an
+unbounded feed of search jobs.

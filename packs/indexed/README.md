@@ -1,274 +1,231 @@
-# Search beyond a Python list
+# Index extracted chunks, then search them
 
-This pack follows the guided/full-scan search and precedes context selection.
-It uses Python's standard-library SQLite driver and a local database file.
-No search service, API key or downloaded model is required.
+This pack follows full-scan search and connects disk-backed retrieval to context
+selection. It uses Python's SQLite driver, local files and synthetic data.
 
-## Start with the whole task
+## Start with the input and its source
 
-Save which words occur in each document once, so later searches can look up words
-instead of rereading every body. The builder receives extracted text; it does not
-receive raw files or a user's search query.
+An ingestion pipeline reads a file incrementally, extracts words, groups them into
+bounded chunks and feeds those chunks to the index builder. Searches later read
+the saved term lookup. They do not reopen every file.
 
-| When | Input | Work | Result |
-|---|---|---|---|
-| Initial import or ingestion | Extracted Documents | Adapt to SearchUnits, then build_index | Persistent SQLite rows |
-| Each search request | Query and caller's access | search_index reads existing postings | Ranked IDs and scores |
-| Preparing context later | Those ranked IDs | load_chunks fetches their text | Text ready for context selection |
-
-For the first two checkpoints, `document_units()` produces one SearchUnit per
-whole document, with `chunk_id = ""`. In the later chunking lesson,
-`chunk_documents()` produces several SearchUnits per document, numbered `"0"`,
-`"1"`, and so on, before the same builder indexes them. A chunk is a piece of text;
-a posting is a word-to-unit lookup row. They are different things.
-
-You implement the builder first, then the query, then chunking. File arrival,
-extraction and background scheduling are outside these three functions. The
-builder runs when its caller invokes it; it does not require async Python.
-
-## Why the existing search slows down
-
-The earlier search opens every document and splits its text into words for every
-query. Reading one document at a time keeps Python from holding the entire
-collection, but it does not reduce the work repeated by each search. Collecting
-and sorting every match creates a separate memory cost.
-
-## Choose the production approach
-
-Full-text search is the feature: find documents by words in their text. An
-inverted index is a common way to implement that feature: each word points to the
-documents containing it. They are not competing alternatives.
-
-For a new system, estimate document volume, search frequency and how quickly
-updates must appear. For an existing system, measure which part is slow. Then
-choose the smallest option that meets the requirement:
-
-| Option | Use it when | Main cost |
+| Stage | Input | Output |
 |---|---|---|
-| Scan stored documents | Searches are rare or measurements show the scan is fast enough. | Every search reads all searchable text. Read in batches to bound application memory. |
-| Database full-text search | Repeated keyword searches need an index, and the existing database handles the measured load. | The database maintains the word lookup and ranking. |
-| Separate search service | Search load harms the primary database, or the product needs behavior it cannot provide, such as typo tolerance or language-specific analysis. | Another service must receive every document, permission change and deletion. It can be temporarily stale. |
+| Supplied `iter_words` | An open decoded plain-text stream | Words read in bounded blocks |
+| `chunk_documents` | `ExtractedDocument(document, words)` records | An iterator of `DocumentChunk` records |
+| `build_index` | An open SQLite connection and those chunks | Stored document metadata, chunk text and term lookup rows |
+| `search_index` | Existing index, query, trusted tenant/user and limit | Ranked `IndexedHit` records |
+| Supplied `load_chunks` | Ranked hits and caller access | Selected text with source identity for `build_context` |
 
-SQLite FTS5 and PostgreSQL text search are examples of the second option.
-Dedicated engines implement the third. Both usually maintain an inverted index
-internally and store it more compactly than ordinary application rows.
+You learn the builder and query first with supplied chunks, then implement their
+upstream chunker. All three checkpoints operate on chunks. None requires a
+complete source body string. `Document` holds only metadata; `DocumentChunk`
+refers to it through its `document` field. Two chunks from one file share that
+metadata object rather than copying its title and users into separate fields.
 
-## What this exercise implements
+The reader takes decoded plain text, calls `read(read_chars)` (default 4096), and
+preserves partial words across reads. It rejects words exceeding `max_word_chars`
+(default 1024). The chunker buffers at most `max_words` words. These explicit bounds
+make text buffering independent of total file size. A custom upstream extractor
+must supply bounded words too. Title size and access-list size are separate
+metadata costs. PDF/OCR parsers and sentence-aware boundaries are not supplied.
 
-This pack writes the inverted index as normal SQLite rows so its mechanics are
-visible. One row records a word, a document or chunk ID, and that word’s score
-contribution. The exercise calls this row a **posting**. This schema is a learning
-tool, not a recommendation for a million-file deployment.
+## Choose the storage approach
 
-A 10,000-word document containing 2,000 distinct normalized words creates 2,000
-posting rows here. One million documents with that average would create two
-billion rows. A database full-text index or dedicated engine uses specialized,
-compressed storage instead of this row-per-word representation.
+Full-text search is the feature. An inverted index is a lookup from a word to the
+records containing it. An entry in that lookup is conventionally called a
+**posting**. Here the table is named `term_chunks`: each row links a term to a
+chunk and records its score contribution.
 
-The other tables separate searchable identity, body text and user permissions so
-their roles remain visible. A production schema may keep title and body together
-and let its database or search engine maintain the text index internally.
+| Approach | A reason to choose it | Main cost |
+|---|---|---|
+| Scan documents | Infrequent searches over a small collection meet the target. | Repeated text reads and scoring on every query. |
+| Database full-text search | Repeated keyword queries fit the existing database's measured capacity. | The database maintains an index and computes ranking. |
+| Separate search service | Search needs independent capacity or features the primary database lacks. | Another store must receive edits, deletion and access changes. |
 
-## How changes reach the index
+This exercise uses ordinary SQLite rows to expose the word-to-chunk mechanism.
+Real full-text engines have specialized index storage. Millions of chunks can
+produce very many term rows; this schema is not a capacity benchmark. A SQL LIMIT
+bounds final result transfer, not all database work.
 
-Indexing normally runs when a file is uploaded or changed, after text extraction.
-It does not rebuild on ordinary application startup. The work can run in the
-upload transaction when changes must be searchable immediately, or in a
-background worker when a short delay is acceptable.
+## Follow the five tables
 
-An update replaces that document’s old index entries. A deletion removes them.
-A full rebuild is useful when the word-splitting rules change or the index must be
-repaired. This checkpoint implements initial construction from unique documents;
-it does not implement uploads, updates, deletions, workers or rebuilds.
+Document `firm-a/d1` has title `Lease notice`, is private and is shared with
+`reader-a`. The ingestion pipeline produces chunk `0`: `Notice period` and chunk
+`1`: `Thirty days`. The complete file body is not an input field.
 
-## Checkpoint 1: save searchable facts once
+### Document metadata, stored once
 
-Edit `build_index.py`; run `python -m pytest -q tests/test_build.py` here.
+`documents` is keyed by `(tenant_id, document_id)`:
 
-`document_units()` turns an iterable of Documents into SearchUnits lazily. For
-whole-document search, chunk_id is the empty string. Later it will identify a
-piece of a document. A SearchUnit has a tenant, document ID, title, body and access
-metadata. `(tenant_id, document_id, chunk_id)` is its unique identity.
+| tenant_id | document_id | title | public |
+|---|---|---|---|
+| firm-a | d1 | Lease notice | 0 |
 
-The previous search checked every document's words for every query. Save those
-checks at import time: one row says which word occurs in which unit, plus the
-points that word contributes if someone searches for it. This row is a **posting**.
-The word itself is stored as text; you do not need a separate word-ID table.
+`document_access` contains one row per allowed user per document:
 
-`open_index()` in `storage.py` already creates four tables. Your function inserts
-rows into them:
+| tenant_id | document_id | user_id |
+|---|---|---|
+| firm-a | d1 | reader-a |
 
-- `units`: integer primary key `id`, tenant/document/chunk identity, title, public flag.
-- `contents`: `unit_id` and the original body `text`.
-- `grants`: `unit_id` and `user_id`, one row per allowed user.
-- `postings`: `tenant_id`, `term`, `unit_id` and `weight`.
+### Chunk identity and text
 
-For tenant `firm-a`, insert document `d1`, title `Lease notice`, body `Notice
-period`. Suppose SQLite assigns `units.id = 7`. The source ID remains `d1`;
-`unit_id = 7` links the other tables' rows to that source record. Obtain this
-integer from the insert cursor's `lastrowid`, rather than inventing an ID.
+`chunks` refers to its document through `(tenant_id, document_id)`. Its generated
+integer `id` is distinct from the source `chunk_id`, which is nonempty and unique
+within a document. Suppose SQLite assigns IDs 7 and 8:
 
-`terms(title)` gives `{"lease", "notice"}`; `terms(body)` gives `{"notice",
-"period"}`. Their union contains three distinct words, so insert three postings:
+| id | tenant_id | document_id | chunk_id |
+|---|---|---|---|
+| 7 | firm-a | d1 | 0 |
+| 8 | firm-a | d1 | 1 |
 
-| tenant_id | term | unit_id | weight |
-|---|---|---:|---:|
+`chunk_texts` uses `chunk_pk = chunks.id`:
+
+| chunk_pk | text |
+|---|---|
+| 7 | Notice period |
+| 8 | Thirty days |
+
+Keeping text separate lets the query score and return IDs before loading text.
+
+### Term-to-chunk lookup
+
+Use `terms()` to find distinct normalized title/text words. A term contributes
+3 if it belongs to the document title and independently 1 if it belongs to this
+chunk's text. Repeated occurrences do not add points.
+
+| tenant_id | term | chunk_pk | weight |
+|---|---|---|---|
 | firm-a | lease | 7 | 3 |
 | firm-a | notice | 7 | 4 |
 | firm-a | period | 7 | 1 |
+| firm-a | lease | 8 | 3 |
+| firm-a | notice | 8 | 3 |
+| firm-a | thirty | 8 | 1 |
+| firm-a | days | 8 | 1 |
 
-`weight` is a score contribution. Title membership contributes 3 and body
-membership independently contributes 1. Thus notice earns 4. It is neither a
-word position nor an occurrence count; repeating notice in the body adds nothing.
-This preserves the earlier exercise's scoring rule, rather than implementing BM25.
+The primary key `(tenant_id, term, chunk_pk)` supports looking up a tenant and word.
+`chunk_pk` links each match back to its chunk. A composite foreign key also prevents
+linking a term row to a different tenant's chunk.
 
-A second document `d2`, title `Schedule`, body `Period`, receives `units.id = 8`.
-Its postings are `(firm-a, schedule, 8, 3)` and `(firm-a, period, 8, 1)`.
-There are two rows for period because two documents contain it.
+A query for `lease period` gives chunk 0 a score of 4 and chunk 1 a score of 3.
+Join their document metadata to get the title and check access. No chunk text is
+needed to calculate those scores.
 
-For a later query `lease period`, assuming both documents are readable, select
-rows for those two words in firm-a. Unit 7 contributes 3 + 1 = 4; unit 8
-contributes 1. The notice and schedule rows do not match this query. Group by
-unit_id and sum the matching weights, then join to units to recover document IDs
-and titles. The stored bodies are not needed to compute these scores.
+The title is stored once, but its scoring signal still applies to every chunk.
+A title-only match can therefore return many chunks with little useful body
+text. This preserves the earlier toy 3/1 score; it is not BM25 or a validated
+ranking policy. Body-based reranking and a per-document result cap are possible
+extensions with different effects on relevance.
 
-This is an **inverted index**: start with a word and look up the documents
-containing it. SQLite's supplied primary-key index on
-`(tenant_id, term, unit_id)` supports that lookup. Storing a table of words alone
-would not avoid scanning it without a suitable database index. Common words can
-still match many rows.
+## Checkpoint 1: persist each extracted chunk
 
-In this checkpoint, implement only the builder. For each incoming unit, insert
-metadata, get its database ID, write its body and grants, and compute its postings
-from the union of the two term sets. Finish these writes before requesting the
-next unit. Retain only the current unit's sets and a unit counter in Python.
-A unit with no terms still needs metadata, body and grants and counts as one;
-empty input returns zero. The next checkpoint implements the query.
+Edit `build_index.py`; run `python -m pytest -q tests/test_build.py` here.
 
-Python/SQL mechanics:
+Input: `chunks`, an iterable of `DocumentChunk(document, chunk_id, text)` supplied
+by ingestion. Tests supply small chunks directly, independently of your chunker.
+The schema is already created by `open_index()`.
+
+For each chunk:
+
+1. Store its document's title/public and allowed users once. Use database
+   uniqueness and `ON CONFLICT ... DO NOTHING` to reuse document/access rows.
+2. Insert its chunk identity, obtain `cursor.lastrowid`, and write its original
+   text to `chunk_texts` using that ID as `chunk_pk`.
+3. Compute the union of title/text terms, then write their weights to `term_chunks`.
+4. Increment the chunk count before requesting the next chunk.
+
+Keep only current chunk data and term sets in Python. Do not collect all chunks,
+all terms, or all document IDs. Input document metadata is consistent even when
+chunks are interleaved or the document already exists. Chunk identities are new;
+duplicates may raise `sqlite3.IntegrityError`. Ignore duplicate document/access
+identities only, not duplicate chunks. Empty input returns zero. Chunks with no
+searchable words still need identity/text rows and count toward the result.
+
+Bind caller values with placeholders. For example, in an unrelated table:
 
 ```python
-# Related example: values are bound to placeholders, not inserted into SQL text.
-connection.execute("INSERT INTO labels(name) VALUES (?)", (label,))
-# The comma makes a one-item tuple. executemany also accepts an iterator of rows.
+cursor = connection.execute('INSERT INTO labels(name) VALUES (?)', (label,))
+new_id = cursor.lastrowid
 ```
 
-Use `execute` for one row and `executemany` for generated postings/grants. Write a
-unit before asking for the next one. Do not first construct a list of the entire document collection.
-The caller owns commit/rollback; `with connection:` commits on success or rolls
-back on an exception. It does not close the connection.
+The comma creates a one-item tuple. `executemany` accepts generated row tuples.
+The caller owns commit/rollback/close. One large transaction still has database
+costs; a production ingestion pipeline needs an explicit commit/recovery policy.
+This task appends unique chunks, not document updates or metadata conflicts.
 
-The initialized index may already contain different identities. This checkpoint
-appends unique units; duplicate identities are invalid and updates/deletes are
-outside its contract. A real indexing pipeline needs a revision-aware update
-policy and bounded commit batches. One huge transaction has its own costs.
-
-## Checkpoint 2: score using the stored postings
+## Checkpoint 2: rank readable chunks in SQL
 
 Edit `search_index.py`; run `python -m pytest -q tests/test_query.py`.
-Tests seed explicit posting weights, so you can practise this before your builder
-passes. In the complete pipeline, the previous checkpoint creates those rows.
+Tests seed term weights independently so your builder need not be solved first.
 
-For query `lease period`, read only those two terms' posting lists in the requested
-tenant. d1 earns 3+1=4. A different unit containing only `period` earns 1. No stored
-document body needs to be read to calculate these scores.
+Validate integer `limit` in 1..100 before handling an empty query. Normalize query
+terms once with `terms()`. Empty terms return `[]`; input has at most 32 distinct
+terms. Query terms use OR matching, each contributing once.
 
-Use SQL operations in this order:
+Look up `term_chunks` by tenant and query terms. Join `chunks` using `chunk_pk`
+and tenant, then `documents` using tenant/document identity. A result must belong
+to the caller's tenant and have either document public visibility or a matching
+`document_access` row for this user. Use `EXISTS` so multiple allowed users do not
+multiply score contributions.
 
-1. Bind the tenant and distinct normalized query terms in the posting lookup.
-2. Join each posting to `units` using its unit ID. Enforce tenant and access:
-   public within that tenant, or an `EXISTS` check for this user in `grants`.
-3. `GROUP BY` unit ID and `SUM` its matching posting weights.
-4. `ORDER BY` score descending, then document ID and chunk ID ascending.
-5. Apply `LIMIT` in SQL and convert only those rows to IndexedHit records.
+Group by chunk database ID and sum matching weights. Order by score descending,
+then document ID and chunk ID ascending. Chunk IDs sort as strings, so `"10"`
+precedes `"2"` in a tie. Apply SQL LIMIT last. Return IndexedHit records, reading
+at most limit rows into Python. Do not read `chunk_texts`, re-tokenize saved text,
+sort all candidates in Python or modify the connection.
 
-`JOIN` associates rows by an ID. `GROUP BY` collects matching rows for the same
-unit so `SUM` computes one score. `EXISTS` answers whether a grant row exists;
-joining every grant directly could multiply scoring rows for users with several
-grants. Distinct query terms likewise prevent repetition inflating scores.
+Generate only IN-clause placeholder syntax; bind all caller values. Inspect
+`EXPLAIN QUERY PLAN`: it should search on tenant and term. The tests check that
+lookup and count final rows transferred to Python. Frequent words can still
+match many chunks and require database grouping/sorting or temporary files.
 
-Related aggregation syntax, using unrelated data:
-
-```sql
-SELECT account_id, SUM(amount) AS total
-FROM payments
-WHERE currency = ?
-GROUP BY account_id
-ORDER BY total DESC, account_id ASC
-LIMIT ?
-```
-
-For an IN clause with several query terms, generate only the `?, ?, ...`
-placeholder syntax. Pass the actual strings as execute parameters. Never format
-tenant IDs, usernames or query strings into SQL. Inputs contain at most 32 unique
-query terms here; very large query expansion needs another parameter strategy.
-
-Validate limit in 1..100 before returning for an empty query. Query terms are OR
-matches. Do not read `contents`, do not mutate the database, and fetch at most
-limit rows into Python. There is intentionally no category filter in this pack.
-
-Inspect the plan by running `EXPLAIN QUERY PLAN` on your SELECT with the same
-parameters. A posting lookup should search on tenant and term. A scan of every
-body, or a Python sort of all hits, defeats the point even if small tests return
-the expected scores. The tests inspect both result transfer and indexed lookup.
-
-## Checkpoint 3: change the unit from a file to a chunk
+## Checkpoint 3: produce chunks from streamed words
 
 Edit `chunk_documents.py`; run `python -m pytest -q tests/test_chunks.py`.
 
-A relevant file can be too long to send to a model. Yield SearchUnits containing
-at most max_words whitespace-delimited words, preserving case and punctuation.
-Use `re.finditer(r"\S+", document.text)` and a small list of pending words;
-`text.split()` allocates every word of the document at once. Yield whenever that
-list fills and flush a final short list. Skip empty bodies and restart chunk IDs
-at `"0"` for each document. Copy source identity, title and access metadata.
+Each `ExtractedDocument` pairs shared `Document` metadata with a one-pass `words`
+iterator. Validate `max_words >= 1` before consuming input (on first iteration is
+fine). Add words to a small list. At max_words, join with single spaces and yield
+a DocumentChunk immediately, before requesting another word. Reset the buffer and
+increment its string chunk ID. Flush a final short chunk, skip empty streams, and
+restart numbering at `"0"` for the next document. Preserve case and punctuation.
 
-Fixed word windows are a transparent baseline. They can cut sentences or separate
-evidence, and editing a document can shift every subsequent chunk ID. Production
-systems may use section/sentence boundaries, overlap, source offsets and versions.
-Those policies must be defined rather than assumed.
+The supplied reader bounds individual words; tests also use guarded iterators to
+catch whole-file buffering or reading ahead. Fixed word groups can cut sentences
+and separate evidence. Edits can shift every subsequent chunk number. Production
+citations need versioned identity or offsets plus retained content, not merely a
+counter that happens to match an earlier run.
 
-Use the same builder and query for chunk units. Title weight is repeated for each
-chunk from that document; a title-only match can therefore return several chunks
-with weak body evidence. Evaluate this limitation before using the scoring rule.
+## Try the connected pipeline
 
-`load_chunks(connection, hits, tenant_id=..., user_id=...)` is provided. It loads
-only the returned units' text, preserves rank order and rechecks access. Its Chunk
-fields match the next exercise's input. `build_context()` then applies its word
-budget and per-document cap. Search limit and context budget are distinct: a
-small candidate limit can miss a smaller useful chunk later in the document collection.
+After solving the three files, run `python demo.py`. The demo writes synthetic
+text incrementally, opens each source file lazily, reads bounded blocks, groups
+words into chunks, persists them, searches and prints selected text ready for
+context. The caller keeps each file open while its word iterator is consumed.
+The demo does not call a model or run context selection.
 
-## Try the completed pipeline
+`load_chunks` preserves hit order and rechecks document access before returning
+text. It adapts results to the existing context exercise's `Chunk` boundary
+record, whose access fields carry this caller's checked scope. Those fields are
+not duplicate permissions stored in the index. The context exercise preserves
+source document/chunk IDs in citations and applies a separate word budget and
+per-document cap.
 
-After implementing all three checkpoints, run `python demo.py`. The demo creates
-a temporary on-disk index, prints whole-document scores, then rebuilds a separate
-chunk index and prints ranked chunks ready for `build_context`. It deliberately
-does not select context or make a model call.
+## Edits, deletion and saved practice
 
-## Memory and scale: what this does and does not establish
+Production updates replace one document's indexed chunks; deletions remove them.
+Both must account for revision ordering, retries and permission freshness. This
+pack implements initial ingestion only. Opening the database does not rebuild
+it, and searches never invoke the builder.
 
-Index construction retains one SearchUnit and its term sets in Python, plus the
-database's buffers. Chunking retains one source Document string and a bounded
-word buffer. This is not a streaming PDF parser; an enormous single document or
-word can still be expensive.
+This revision replaces the earlier whole-document `SearchUnit` contract with
+streamed chunks and normalized metadata. Activity IDs and saved drafts remain.
+Export an older draft before using Reset to load the new starter. Existing local
+practice databases using `units/contents/grants/postings` are not migrated; use a
+new database path for this revised pack. The demo already creates a fresh one.
 
-At query time Python receives at most K small metadata records. SQLite still
-examines matching postings and performs grouping/sorting. Frequent words can
-match most of the document collection; database cache, temporary work and disk space are real
-costs. `open_index` requests a small page cache and file-backed temporary storage;
-that is not a hard process-memory limit or a proof of million-document capacity.
-
-For interviews, explain the ownership of each cost before naming a product. A
-dedicated search engine may provide compressed postings, relevance models such
-as BM25, optimized top-K evaluation, sharding and update tooling. None makes
-permissions, document collection size, query frequency or memory budgets disappear. This pack
-teaches the mechanism on a local disk-backed document collection; it is not a load benchmark.
-
-Technical reading: [SQLite query planning](https://www.sqlite.org/queryplanner.html),
+Technical references: [SQLite query planning](https://www.sqlite.org/queryplanner.html),
 [Python SQLite API](https://docs.python.org/3/library/sqlite3.html),
-[SQLite temporary storage](https://www.sqlite.org/tempfiles.html).
-
-Further reading: [FTS5 storage and updates](https://www.sqlite.org/fts5.html),
-[Elasticsearch refresh semantics](https://www.elastic.co/docs/manage-data/data-store/near-real-time-search).
-
-[PostgreSQL full-text indexes](https://www.postgresql.org/docs/current/textsearch-indexes.html) describe its built-in inverted index option.
+[SQLite temporary storage](https://www.sqlite.org/tempfiles.html), and
+[FTS5 storage and updates](https://www.sqlite.org/fts5.html).

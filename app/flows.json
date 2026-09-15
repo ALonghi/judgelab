@@ -7,9 +7,9 @@
       "title": "Index build and query flow",
       "width": 1000,
       "height": 500,
-      "description": "Source documents are split into words and written to a stored search index. A search reads the word-to-document entries for its query. Each matching document passes an access check before readable matches are scored, sorted and limited.",
+      "description": "During ingestion, bounded extracted chunks are tokenized and written to a disk index with shared document metadata. A query reads term-to-chunk entries, checks document access, then scores, sorts and limits readable chunks.",
       "nodes": [
-        {"x":25,"y":65,"w":180,"h":64,"shape":"document","lines":["Extracted","document text"]},
+        {"x":25,"y":65,"w":180,"h":64,"shape":"document","lines":["Extracted","text chunks"]},
         {"x":285,"y":65,"w":200,"h":64,"shape":"process","lines":["Tokenize words","Calculate weights"]},
         {"x":585,"y":50,"w":180,"h":94,"shape":"database","lines":["Search index"]},
         {"x":25,"y":260,"w":180,"h":64,"shape":"terminal","lines":["Search query"]},

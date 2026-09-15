@@ -9,16 +9,18 @@ def db(tmp_path):
     connection.close()
 
 
-def seed(connection, key, weights, *, tenant="a", chunk="", public=True,
+def seed(connection, key, weights, *, tenant="a", chunk="0", public=True,
          allowed=(), title=None, text="body deliberately not used for scoring"):
     """Explicit fixture weights let query tests run without a solved builder."""
+    connection.execute("INSERT INTO documents VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+                       (tenant, key, title or key, public))
+    connection.executemany("INSERT INTO document_access VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+                          ((tenant, key, user) for user in allowed))
     cursor = connection.execute(
-        "INSERT INTO units(tenant_id, document_id, chunk_id, title, public) VALUES (?, ?, ?, ?, ?)",
-        (tenant, key, chunk, title or key, public))
-    unit_id = cursor.lastrowid
-    connection.execute("INSERT INTO contents VALUES (?, ?)", (unit_id, text))
-    connection.executemany("INSERT INTO postings VALUES (?, ?, ?, ?)",
-                          ((tenant, term, unit_id, weight) for term, weight in weights.items()))
-    connection.executemany("INSERT INTO grants VALUES (?, ?)",
-                          ((unit_id, user) for user in allowed))
-    return unit_id
+        "INSERT INTO chunks(tenant_id, document_id, chunk_id) VALUES (?, ?, ?)",
+        (tenant, key, chunk))
+    chunk_pk = cursor.lastrowid
+    connection.execute("INSERT INTO chunk_texts VALUES (?, ?)", (chunk_pk, text))
+    connection.executemany("INSERT INTO term_chunks VALUES (?, ?, ?, ?)",
+                          ((tenant, term, chunk_pk, weight) for term, weight in weights.items()))
+    return chunk_pk
