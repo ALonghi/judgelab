@@ -3677,7 +3677,7 @@
         "Does cancellation imply fallback?",
         "What would you send a client after a mid-answer provider error?"
       ],
-      "explanation": "The reference uses a timed iterator helper and an emitted flag. Ordinary errors trigger fallback only before output. Async iterator cleanup is explicit.",
+      "explanation": "The reference tries the providers in order: primary, then backup. Both use the same loop. anext(iterator) waits for one chunk; asyncio.timeout bounds just that wait. yield hands the chunk to the caller immediately and pauses until the caller asks for more.\n\nThe emitted flag answers one question: have we handed over any primary chunk? If the primary fails while it is false, continue to the backup. Otherwise re-raise the error. Backup errors always propagate. Even an empty string counts as a yielded chunk. StopAsyncIteration means normal completion, so return without trying the backup, including when the primary returns no chunks.\n\nFor example: primary fails immediately → backup may answer. Primary yields “The answer is” and then fails → keep that partial output and report the error; never append the backup’s new answer.\n\nCancelledError bypasses except Exception, so a caller cancelling the operation does not start the backup. The finally block closes the active iterator if it supports aclose(), including when the caller explicitly closes this generator. A caller stopping early should close it explicitly (for example with contextlib.aclosing). The timeout ends before yield so time spent processing a chunk is not charged to the provider.",
       "selection": null,
       "depends": [
         "q-cancel"
