@@ -153,7 +153,10 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def session_signature(self, value):
-        return hmac.new(self.server.auth_digest, (self.server.token + ':' + value).encode(), 'sha256').hexdigest()
+        # Authentication must survive idle stops and deploys; the CSRF token is
+        # deliberately process-local and refreshed separately by open tabs.
+        message = 'judgelab-session-v1:' + self.server.public_origin + ':' + value
+        return hmac.new(self.server.auth_digest, message.encode(), 'sha256').hexdigest()
 
     def authenticated(self):
         try:

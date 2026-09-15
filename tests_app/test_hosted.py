@@ -107,13 +107,14 @@ def test_native_login_success_and_failure(hosted_app):
         assert request(base, path, headers={'Host':'lab.example'})[0] == 200
 
 
-def test_session_tampering_expiry_and_restart(hosted_app):
+def test_session_tampering_expiry_and_password_change(hosted_app):
     base, server, headers = hosted_app
     assert request(base, '/api/bootstrap', headers={**headers, 'Cookie':headers['Cookie']+'x'})[0] == 401
     value = str(int(time.time()) - 1) + '.nonce'
-    signature = hmac.new(server.auth_digest, (server.token + ':' + value).encode(), 'sha256').hexdigest()
+    signature = hmac.new(server.auth_digest, ('judgelab-session-v1:' + server.public_origin + ':' + value).encode(), 'sha256').hexdigest()
     assert request(base, '/api/bootstrap', headers={**headers, 'Cookie':f'__Host-judgelab={value}.{signature}'})[0] == 401
-    server.token = 'restarted-token'
+    server.public_origin, server.auth_digest = hosted_settings({
+        'JUDGELAB_PUBLIC_ORIGIN': 'https://lab.example', 'JUDGELAB_PASSWORD': 'y'*32})
     assert request(base, '/api/bootstrap', headers=headers)[0] == 401
 
 
@@ -127,3 +128,18 @@ def test_login_policy_preserves_native_form_origin(hosted_app):
     status, body, _ = login_request(base, origin=browser_origin)
     assert status == 303, body.decode()
     assert policy == 'same-origin'
+
+
+def test_reveal_recovers_after_process_restart(hosted_app):
+    base, server, headers = hosted_app
+    server.store.state['attempts']['g-score'] = 1
+    server.token = 'new-process-token'
+    status, body, _ = request(base, '/api/reveal', {'id':'g-score'},
+                              {**headers, 'X-Lab-Token':'csrf-token'})
+    assert status == 403, body.decode()
+    assert json.loads(body)['code'] == 'session_token_expired'
+    status, body, _ = request(base, '/api/bootstrap', headers=headers)
+    assert status == 200
+    token = json.loads(body)['token']
+    assert request(base, '/api/reveal', {'id':'g-score'},
+                   {**headers, 'X-Lab-Token':token})[0] == 200

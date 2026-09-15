@@ -2,7 +2,12 @@
 
 The hosted app is for one trusted learner. The sign-in page uses a standard HTML form over HTTPS (username `learner`), so
 password managers can save and fill credentials. Successful sign-in sets a Secure,
-HttpOnly, SameSite cookie valid for seven days or until the server restarts.
+HttpOnly, SameSite cookie valid for seven days from sign-in. Sessions survive
+server restarts and Fly idle stops; changing the password invalidates them.
+The separate CSRF token changes on restart; open tabs refresh it and retry a
+rejected write once without replacing the draft. Login cookies are not renewed
+automatically. Cookies issued before this restart-persistence fix require one
+new sign-in after deployment.
 Practice pages and APIs require this cookie; only the login page and its styling
 and icon are public. It is not a multi-user
 code sandbox: submitted Python can access the instance's practice data and should
